@@ -6,28 +6,69 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost } from "@workspace/api-client-react";
 import { Bot, Send, Save, ArrowRight, Loader2 } from "lucide-react";
 
+const DAYS = [
+  { label: "Пн", index: 1 },
+  { label: "Вт", index: 2 },
+  { label: "Ср", index: 3 },
+  { label: "Чт", index: 4 },
+  { label: "Пт", index: 5 },
+  { label: "Сб", index: 6 },
+  { label: "Вс", index: 0 },
+];
+
+const DAYS_RU_FULL = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
+
 export default function Home() {
   const [idea, setIdea] = useState("");
   const [feedback, setFeedback] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
   const [, setLocation] = useLocation();
 
   const createConversation = useCreateOpenaiConversation();
   const createPost = useCreatePost();
 
+  const readSSEStream = async (
+    response: Response,
+    onContent: (chunk: string) => void,
+    onDay?: (day: number) => void,
+  ) => {
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const parsed = JSON.parse(line.slice(6));
+        if (parsed.done) break;
+        if (parsed.day !== undefined && onDay) onDay(parsed.day);
+        if (parsed.content) onContent(parsed.content);
+      }
+    }
+  };
+
   const handleGenerate = async () => {
     if (!idea.trim() || isGenerating) return;
-    
+
     setIsGenerating(true);
     setAiResponse("");
-    
+    setSelectedDay(null);
+    setRecommendedDay(null);
+
     try {
       let currentConvId = conversationId;
       if (!currentConvId) {
         const conv = await createConversation.mutateAsync({
-          data: { title: idea.slice(0, 50) }
+          data: { title: idea.slice(0, 50) },
         });
         currentConvId = conv.id;
         setConversationId(conv.id);
@@ -39,25 +80,14 @@ export default function Home() {
         body: JSON.stringify({ content: idea }),
       });
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const parsed = JSON.parse(line.slice(6));
-          if (parsed.done) break;
-          if (parsed.content) {
-            setAiResponse(prev => prev + parsed.content);
-          }
-        }
-      }
+      await readSSEStream(
+        response,
+        (chunk) => setAiResponse((prev) => prev + chunk),
+        (day) => {
+          setRecommendedDay(day);
+          setSelectedDay(day);
+        },
+      );
     } catch (error) {
       console.error(error);
     } finally {
@@ -67,36 +97,27 @@ export default function Home() {
 
   const handleImprove = async () => {
     if (!feedback.trim() || isGenerating || !conversationId) return;
-    
+
     setIsGenerating(true);
-    
+
     try {
-      setAiResponse(prev => prev + "\n\n---\nУлучшаю...\n\n");
+      const dayNote = selectedDay !== null
+        ? ` (пост для ${DAYS_RU_FULL[selectedDay]})`
+        : "";
+      const content = `Улучши пост с учётом этих замечаний${dayNote}: ${feedback}`;
+
+      setAiResponse((prev) => prev + "\n\n---\nУлучшаю...\n\n");
+
       const response = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: `Улучши пост с учетом этих замечаний: ${feedback}` }),
+        body: JSON.stringify({ content }),
       });
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      await readSSEStream(response, (chunk) =>
+        setAiResponse((prev) => prev + chunk),
+      );
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const parsed = JSON.parse(line.slice(6));
-          if (parsed.done) break;
-          if (parsed.content) {
-            setAiResponse(prev => prev + parsed.content);
-          }
-        }
-      }
       setFeedback("");
     } catch (error) {
       console.error(error);
@@ -113,8 +134,8 @@ export default function Home() {
           title: idea.slice(0, 50) || "Новый пост",
           content: aiResponse,
           status: "draft",
-          conversationId
-        }
+          conversationId,
+        },
       });
       setLocation("/posts");
     } catch (err) {
@@ -124,39 +145,131 @@ export default function Home() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-[600px]">
-      <div className="flex flex-col gap-6">
-        <Card className="flex-1 flex flex-col border-border/50 shadow-sm">
+      {/* LEFT COLUMN */}
+      <div className="flex flex-col gap-4">
+        {/* Idea input */}
+        <Card className="flex flex-col border-border/50 shadow-sm">
           <CardHeader className="bg-muted/30 pb-4 border-b">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <Bot className="w-4 h-4" />
               Новая идея для поста
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col">
+          <CardContent className="p-0 flex flex-col">
             <Textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               placeholder="О чем напишем сегодня? Например: Расскажи про новый мост в Китае, сделай упор на вантовые конструкции..."
-              className="flex-1 resize-none border-0 focus-visible:ring-0 rounded-none p-6 text-base"
+              className="resize-none border-0 focus-visible:ring-0 rounded-none p-6 text-base min-h-[200px]"
+              data-testid="input-idea"
             />
-            <div className="p-4 border-t bg-muted/10 flex justify-end">
-              <Button onClick={handleGenerate} disabled={!idea.trim() || isGenerating} size="lg" className="w-full sm:w-auto">
-                {isGenerating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Send className="w-5 h-5 mr-2" />}
+            <div className="p-4 border-t bg-muted/10">
+              <Button
+                onClick={handleGenerate}
+                disabled={!idea.trim() || isGenerating}
+                size="lg"
+                className="w-full"
+                data-testid="button-generate"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5 mr-2" />
+                )}
                 Сгенерировать
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Day selector */}
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader className="bg-muted/30 pb-3 border-b">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              День публикации
+              {recommendedDay !== null && (
+                <span className="ml-2 text-xs text-primary font-normal">
+                  — рекомендован {DAYS.find((d) => d.index === recommendedDay)?.label}
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-7 gap-1.5">
+              {DAYS.map((day) => {
+                const isSelected = selectedDay === day.index;
+                const isRecommended = recommendedDay === day.index;
+                return (
+                  <Button
+                    key={day.index}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedDay(day.index)}
+                    className={`flex flex-col h-auto py-2 px-1 text-xs font-medium transition-all ${
+                      isSelected && isRecommended
+                        ? "ring-2 ring-primary ring-offset-1"
+                        : ""
+                    }`}
+                    data-testid={`button-day-${day.label.toLowerCase()}`}
+                  >
+                    <span>{day.label}</span>
+                    {isRecommended && !isSelected && (
+                      <span className="w-1 h-1 rounded-full bg-primary mt-1" />
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Feedback / correction */}
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader className="bg-muted/30 pb-3 border-b">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Корректировка
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 flex gap-3">
+            <Textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Что исправить? (Например: сделай тон более техническим)"
+              className="resize-none h-20"
+              disabled={!aiResponse || isGenerating}
+              data-testid="input-feedback"
+            />
+            <Button
+              onClick={handleImprove}
+              disabled={!feedback.trim() || !aiResponse || isGenerating}
+              className="h-20 px-5 shrink-0"
+              data-testid="button-improve"
+            >
+              {isGenerating ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ArrowRight className="w-5 h-5" />
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="flex flex-col gap-6">
+      {/* RIGHT COLUMN */}
+      <div className="flex flex-col">
         <Card className="flex-1 flex flex-col border-border/50 shadow-sm">
           <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Результат
             </CardTitle>
             {aiResponse && (
-              <Button onClick={handleAccept} size="sm" variant="secondary" className="h-8">
+              <Button
+                onClick={handleAccept}
+                size="sm"
+                variant="secondary"
+                className="h-8"
+                data-testid="button-accept-post"
+              >
                 <Save className="w-4 h-4 mr-2" />
                 Принять пост
               </Button>
@@ -173,30 +286,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader className="bg-muted/30 pb-3 border-b">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Корректировка
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 flex gap-4">
-            <Textarea
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              placeholder="Что исправить? (Например: сделай тон более техническим)"
-              className="resize-none h-20"
-              disabled={!aiResponse || isGenerating}
-            />
-            <Button 
-              onClick={handleImprove} 
-              disabled={!feedback.trim() || !aiResponse || isGenerating} 
-              className="h-20 px-6 shrink-0"
-            >
-              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
-            </Button>
           </CardContent>
         </Card>
       </div>

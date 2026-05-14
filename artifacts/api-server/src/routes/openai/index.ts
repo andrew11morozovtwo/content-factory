@@ -35,8 +35,9 @@ const DAYS_RU = [
   "Суббота",
 ];
 
-function buildSystemPrompt(topic: string): string {
-  const dayName = DAYS_RU[new Date().getDay()];
+function buildSystemPrompt(topic: string, dayIndex?: number): string {
+  const idx = dayIndex !== undefined ? dayIndex : new Date().getDay();
+  const dayName = DAYS_RU[idx];
   return `Ты — креативный контент-стратег Telegram-канала «Я Инженер».
 Твоя задача — СРАЗУ выдать один готовый пост для публикации в Telegram, без пояснений и комментариев.
 Создай авторский пост длиной 900–1000 знаков (с пробелами) на тему: ${topic}, ориентируясь на ${dayName} и опираясь на ключевую мысль автора: ${topic}.
@@ -192,6 +193,9 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+
+  const recommendedDay = new Date().getDay();
+  res.write(`data: ${JSON.stringify({ day: recommendedDay })}\n\n`);
 
   let fullResponse = "";
 
