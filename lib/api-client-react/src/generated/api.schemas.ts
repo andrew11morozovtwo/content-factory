@@ -8,3 +8,116 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ApiError {
+  error: string;
+}
+
+export type PostStatus = (typeof PostStatus)[keyof typeof PostStatus];
+
+export const PostStatus = {
+  draft: "draft",
+  scheduled: "scheduled",
+  published: "published",
+  rejected: "rejected",
+} as const;
+
+export interface Post {
+  id: number;
+  title: string;
+  content: string;
+  status: PostStatus;
+  /** @nullable */
+  scheduledAt: string | null;
+  /** @nullable */
+  feedback: string | null;
+  /** @nullable */
+  conversationId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PostInputStatus =
+  (typeof PostInputStatus)[keyof typeof PostInputStatus];
+
+export const PostInputStatus = {
+  draft: "draft",
+  scheduled: "scheduled",
+  published: "published",
+  rejected: "rejected",
+} as const;
+
+export interface PostInput {
+  title: string;
+  content: string;
+  status?: PostInputStatus;
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** @nullable */
+  feedback?: string | null;
+  /** @nullable */
+  conversationId?: number | null;
+}
+
+export type PostUpdateStatus =
+  (typeof PostUpdateStatus)[keyof typeof PostUpdateStatus];
+
+export const PostUpdateStatus = {
+  draft: "draft",
+  scheduled: "scheduled",
+  published: "published",
+  rejected: "rejected",
+} as const;
+
+export interface PostUpdate {
+  title?: string;
+  content?: string;
+  status?: PostUpdateStatus;
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** @nullable */
+  feedback?: string | null;
+  /** @nullable */
+  conversationId?: number | null;
+}
+
+export interface PostStats {
+  total: number;
+  draft: number;
+  scheduled: number;
+  published: number;
+  rejected: number;
+}
+
+export interface OpenaiConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface OpenaiMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface OpenaiConversationInput {
+  title: string;
+}
+
+export interface OpenaiMessageInput {
+  content: string;
+}
+
+export interface OpenaiConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: OpenaiMessage[];
+}
+
+export interface OpenaiError {
+  error: string;
+}

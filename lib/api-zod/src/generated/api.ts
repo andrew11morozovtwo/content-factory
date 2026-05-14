@@ -14,3 +14,173 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all posts
+ */
+export const ListPostsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  content: zod.string(),
+  status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  scheduledAt: zod.coerce.date().nullable(),
+  feedback: zod.string().nullable(),
+  conversationId: zod.number().nullable(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListPostsResponse = zod.array(ListPostsResponseItem);
+
+/**
+ * @summary Create a new post
+ */
+export const CreatePostBody = zod.object({
+  title: zod.string(),
+  content: zod.string(),
+  status: zod.enum(["draft", "scheduled", "published", "rejected"]).optional(),
+  scheduledAt: zod.coerce.date().nullish(),
+  feedback: zod.string().nullish(),
+  conversationId: zod.number().nullish(),
+});
+
+/**
+ * @summary Get a post by ID
+ */
+export const GetPostParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetPostResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  content: zod.string(),
+  status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  scheduledAt: zod.coerce.date().nullable(),
+  feedback: zod.string().nullable(),
+  conversationId: zod.number().nullable(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a post
+ */
+export const UpdatePostParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePostBody = zod.object({
+  title: zod.string().optional(),
+  content: zod.string().optional(),
+  status: zod.enum(["draft", "scheduled", "published", "rejected"]).optional(),
+  scheduledAt: zod.coerce.date().nullish(),
+  feedback: zod.string().nullish(),
+  conversationId: zod.number().nullish(),
+});
+
+export const UpdatePostResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  content: zod.string(),
+  status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  scheduledAt: zod.coerce.date().nullable(),
+  feedback: zod.string().nullable(),
+  conversationId: zod.number().nullable(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a post
+ */
+export const DeletePostParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get post statistics by status
+ */
+export const GetPostStatsResponse = zod.object({
+  total: zod.number(),
+  draft: zod.number(),
+  scheduled: zod.number(),
+  published: zod.number(),
+  rejected: zod.number(),
+});
+
+/**
+ * @summary List all conversations
+ */
+export const ListOpenaiConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListOpenaiConversationsResponse = zod.array(
+  ListOpenaiConversationsResponseItem,
+);
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateOpenaiConversationBody = zod.object({
+  title: zod.string(),
+});
+
+/**
+ * @summary Get conversation with messages
+ */
+export const GetOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetOpenaiConversationResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListOpenaiMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListOpenaiMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListOpenaiMessagesResponse = zod.array(
+  ListOpenaiMessagesResponseItem,
+);
+
+/**
+ * @summary Send a text message and receive a streaming text response
+ */
+export const SendOpenaiMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendOpenaiMessageBody = zod.object({
+  content: zod.string(),
+});
