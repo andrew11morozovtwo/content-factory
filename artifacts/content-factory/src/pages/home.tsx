@@ -23,6 +23,7 @@ export default function Home() {
   const [feedback, setFeedback] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
@@ -36,6 +37,7 @@ export default function Home() {
     response: Response,
     onContent: (chunk: string) => void,
     onDay?: (day: number) => void,
+    onStep?: (step: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -52,6 +54,7 @@ export default function Home() {
         if (!line.startsWith("data: ")) continue;
         try {
           const parsed = JSON.parse(line.slice(6));
+          if (parsed.step !== undefined && onStep) onStep(parsed.step);
           if (parsed.day !== undefined && onDay) onDay(parsed.day);
           if (parsed.content) onContent(parsed.content);
           if (parsed.done) { finished = true; }
@@ -67,6 +70,7 @@ export default function Home() {
 
     setIsGenerating(true);
     setAiResponse("");
+    setCurrentStep(null);
     setSelectedDay(todayIndex);
     setRecommendedDay(todayIndex);
 
@@ -88,16 +92,23 @@ export default function Home() {
 
       await readSSEStream(
         response,
-        (chunk) => setAiResponse((prev) => prev + chunk),
+        (chunk) => {
+          setCurrentStep(null);
+          setAiResponse((prev) => prev + chunk);
+        },
         (day) => {
           setRecommendedDay(day);
           setSelectedDay(day);
+        },
+        (step) => {
+          setCurrentStep(step);
         },
       );
     } catch (error) {
       console.error(error);
     } finally {
       setIsGenerating(false);
+      setCurrentStep(null);
     }
   };
 
@@ -105,14 +116,13 @@ export default function Home() {
     if (!feedback.trim() || isGenerating || !conversationId) return;
 
     setIsGenerating(true);
+    setCurrentStep(null);
 
     try {
-      const dayNote = selectedDay !== null
-        ? ` (пост для ${DAYS_RU_FULL[selectedDay]})`
-        : "";
-      const content = `Улучши пост с учётом этих замечаний${dayNote}: ${feedback}`;
+      const dayNote = `пост для ${DAYS_RU_FULL[selectedDay]}`;
+      const content = `Улучши пост (${dayNote}) с учётом замечаний: ${feedback}`;
 
-      setAiResponse((prev) => prev + "\n\n---\nУлучшаю...\n\n");
+      setAiResponse("");
 
       const response = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -120,8 +130,14 @@ export default function Home() {
         body: JSON.stringify({ content }),
       });
 
-      await readSSEStream(response, (chunk) =>
-        setAiResponse((prev) => prev + chunk),
+      await readSSEStream(
+        response,
+        (chunk) => {
+          setCurrentStep(null);
+          setAiResponse((prev) => prev + chunk);
+        },
+        undefined,
+        (step) => setCurrentStep(step),
       );
 
       setFeedback("");
@@ -129,6 +145,7 @@ export default function Home() {
       console.error(error);
     } finally {
       setIsGenerating(false);
+      setCurrentStep(null);
     }
   };
 
@@ -268,7 +285,7 @@ export default function Home() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Результат
             </CardTitle>
-            {aiResponse && (
+            {aiResponse && !isGenerating && (
               <Button
                 onClick={handleAccept}
                 size="sm"
@@ -284,6 +301,13 @@ export default function Home() {
           <CardContent className="p-6 flex-1 overflow-auto whitespace-pre-wrap font-mono text-sm leading-relaxed">
             {aiResponse ? (
               aiResponse
+            ) : currentStep ? (
+              <div className="h-full flex items-center justify-center text-center px-8">
+                <div>
+                  <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-primary/60" />
+                  <p className="text-sm text-muted-foreground">{currentStep}</p>
+                </div>
+              </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground/50 text-center px-8">
                 <div>
