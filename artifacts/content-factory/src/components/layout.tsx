@@ -41,7 +41,18 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className="h-16 flex-shrink-0 border-b bg-card flex items-center px-8 shadow-sm z-10 relative">
           <h1 className="font-medium text-lg">
-            {links.find(l => l.href === location)?.label || "Контент Фабрика"}
+            {location === "/" ? (
+              <a
+                href="https://vk.com/club238494545"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Я-Инженер
+              </a>
+            ) : (
+              links.find(l => l.href === location)?.label || "Контент Фабрика"
+            )}
           </h1>
         </div>
         <div className="flex-1 overflow-auto p-8">
