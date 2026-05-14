@@ -10,6 +10,13 @@ export default function Calendar() {
 
   const scheduledPosts = posts?.filter(p => p.status === "scheduled" && p.scheduledAt) || [];
 
+  const next7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -58,27 +65,40 @@ export default function Calendar() {
         <CardContent>
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground">Загрузка...</div>
-          ) : scheduledPosts.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-              Нет запланированных постов
-            </div>
           ) : (
-            <div className="space-y-4">
-              {scheduledPosts.sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime()).map(post => (
-                <div key={post.id} className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <div className="flex flex-col items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-md shrink-0">
-                    <span className="text-xs uppercase font-medium opacity-70">{format(new Date(post.scheduledAt!), "EEE", { locale: ru })}</span>
-                    <span className="text-lg font-bold leading-tight">{format(new Date(post.scheduledAt!), "d", { locale: ru })}</span>
-                    <span className="text-xs uppercase">{format(new Date(post.scheduledAt!), "MMM", { locale: ru })}</span>
+            <div className="space-y-3">
+              {next7Days.map(day => {
+                const dayPosts = scheduledPosts.filter(p => {
+                  const d = new Date(p.scheduledAt!);
+                  return d.getFullYear() === day.getFullYear() &&
+                    d.getMonth() === day.getMonth() &&
+                    d.getDate() === day.getDate();
+                });
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <div key={day.toISOString()} className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${isToday ? "border-primary/40 bg-primary/5" : "hover:bg-muted/50"}`}>
+                    <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-md shrink-0 ${isToday ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                      <span className="text-xs uppercase font-medium opacity-80">{format(day, "EEE", { locale: ru })}</span>
+                      <span className="text-lg font-bold leading-tight">{format(day, "d", { locale: ru })}</span>
+                      <span className="text-xs uppercase">{format(day, "MMM", { locale: ru })}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {dayPosts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic mt-1">Публикаций нет</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dayPosts.sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime()).map(post => (
+                            <div key={post.id} className="flex items-center gap-3">
+                              <span className="text-sm text-muted-foreground shrink-0">{format(new Date(post.scheduledAt!), "HH:mm", { locale: ru })}</span>
+                              <span className="font-medium text-sm truncate">{post.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium line-clamp-1">{post.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {format(new Date(post.scheduledAt!), "HH:mm", { locale: ru })}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
