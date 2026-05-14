@@ -415,6 +415,13 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   const isFirstMessage = history.filter((m) => m.role === "user").length === 1;
   let fullResponse = "";
 
+  const sendError = (message: string) => {
+    res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  };
+
+  try {
   if (isFirstMessage) {
     // ── 5-agent pipeline ─────────────────────────────────────────────────────
 
@@ -497,7 +504,6 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   // Гарантируем наличие #ЯИнженер
   const corrected = ensureYaInzhenerHashtag(fullResponse);
   if (corrected !== fullResponse) {
-    // Отправить разницу клиенту (хвост, которого не хватало)
     const suffix = corrected.slice(fullResponse.length);
     res.write(`data: ${JSON.stringify({ content: suffix })}\n\n`);
   }
@@ -510,6 +516,14 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
   res.end();
+  } catch (err: unknown) {
+    req.log.error({ err }, "pipeline error");
+    const status = (err as { status?: number })?.status;
+    const msg = status === 402
+      ? "Недостаточно баланса на ProxyAPI. Пополните счёт на proxyapi.ru и попробуйте снова."
+      : "Ошибка при генерации. Попробуйте ещё раз.";
+    sendError(msg);
+  }
 });
 
 export default router;

@@ -24,6 +24,7 @@ export default function Home() {
   const [aiResponse, setAiResponse] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
@@ -38,6 +39,7 @@ export default function Home() {
     onContent: (chunk: string) => void,
     onDay?: (day: number) => void,
     onStep?: (step: string) => void,
+    onError?: (msg: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -57,6 +59,7 @@ export default function Home() {
           if (parsed.step !== undefined && onStep) onStep(parsed.step);
           if (parsed.day !== undefined && onDay) onDay(parsed.day);
           if (parsed.content) onContent(parsed.content);
+          if (parsed.error && onError) onError(parsed.error);
           if (parsed.done) { finished = true; }
         } catch {
           // skip malformed lines
@@ -71,6 +74,7 @@ export default function Home() {
     setIsGenerating(true);
     setAiResponse("");
     setCurrentStep(null);
+    setErrorMessage(null);
     setSelectedDay(todayIndex);
     setRecommendedDay(todayIndex);
 
@@ -103,9 +107,13 @@ export default function Home() {
         (step) => {
           setCurrentStep(step);
         },
+        (msg) => {
+          setErrorMessage(msg);
+        },
       );
     } catch (error) {
       console.error(error);
+      setErrorMessage("Не удалось подключиться к серверу. Попробуйте ещё раз.");
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
@@ -117,6 +125,7 @@ export default function Home() {
 
     setIsGenerating(true);
     setCurrentStep(null);
+    setErrorMessage(null);
 
     try {
       const dayNote = `пост для ${DAYS_RU_FULL[selectedDay]}`;
@@ -138,11 +147,13 @@ export default function Home() {
         },
         undefined,
         (step) => setCurrentStep(step),
+        (msg) => setErrorMessage(msg),
       );
 
       setFeedback("");
     } catch (error) {
       console.error(error);
+      setErrorMessage("Не удалось подключиться к серверу. Попробуйте ещё раз.");
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
@@ -299,7 +310,17 @@ export default function Home() {
             )}
           </CardHeader>
           <CardContent className="p-6 flex-1 overflow-auto whitespace-pre-wrap font-mono text-sm leading-relaxed">
-            {aiResponse ? (
+            {errorMessage ? (
+              <div className="h-full flex items-center justify-center text-center px-8">
+                <div>
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <span className="text-destructive text-xl font-bold">!</span>
+                  </div>
+                  <p className="text-destructive font-medium mb-1">Ошибка генерации</p>
+                  <p className="text-sm text-muted-foreground">{errorMessage}</p>
+                </div>
+              </div>
+            ) : aiResponse ? (
               aiResponse
             ) : currentStep ? (
               <div className="h-full flex items-center justify-center text-center px-8">
