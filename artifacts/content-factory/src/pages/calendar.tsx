@@ -67,7 +67,8 @@ export default function Calendar() {
               {scheduledPosts.sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime()).map(post => (
                 <div key={post.id} className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors">
                   <div className="flex flex-col items-center justify-center w-16 h-16 bg-primary/10 text-primary rounded-md shrink-0">
-                    <span className="text-lg font-bold">{format(new Date(post.scheduledAt!), "d", { locale: ru })}</span>
+                    <span className="text-xs uppercase font-medium opacity-70">{format(new Date(post.scheduledAt!), "EEE", { locale: ru })}</span>
+                    <span className="text-lg font-bold leading-tight">{format(new Date(post.scheduledAt!), "d", { locale: ru })}</span>
                     <span className="text-xs uppercase">{format(new Date(post.scheduledAt!), "MMM", { locale: ru })}</span>
                   </div>
                   <div>
