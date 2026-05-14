@@ -55,6 +55,63 @@ async function callAI(openai: OpenAI, systemPrompt: string, userMessage: string)
   return completion.choices[0]?.message?.content ?? "";
 }
 
+interface ControllerResult {
+  content: string;
+  urls: string[];
+}
+
+async function callAIWithWebSearch(systemPrompt: string, userMessage: string): Promise<ControllerResult> {
+  const apiKey = process.env.PROXYAPI_KEY ?? "missing";
+  const response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-search-preview",
+      web_search_options: {
+        search_context_size: "medium",
+        user_location: {
+          type: "approximate",
+          approximate: { country: "RU" },
+        },
+      },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    }),
+  });
+
+  const data = await response.json() as {
+    choices: Array<{
+      message: {
+        content: string;
+        annotations?: Array<{
+          type: string;
+          url_citation?: { url: string; title: string };
+        }>;
+      };
+    }>;
+    error?: { message: string };
+  };
+
+  if (data.error) {
+    logger.warn({ error: data.error }, "gpt-4o-search-preview error, falling back to gpt-4o");
+    return { content: `Поиск недоступен: ${data.error.message}`, urls: [] };
+  }
+
+  const message = data.choices[0]?.message;
+  const content = message?.content ?? "";
+  const urls = (message?.annotations ?? [])
+    .filter((a) => a.type === "url_citation" && a.url_citation)
+    .map((a) => a.url_citation!.url)
+    .filter((url, i, arr) => arr.indexOf(url) === i); // deduplicate
+
+  return { content, urls };
+}
+
 const AGENT_0_SYSTEM = `Ты — Агент-Контролёр. Проверяешь достоверность новости или темы, предложенной пользователем.
 
 Выполни следующие действия:
@@ -341,13 +398,20 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   if (isFirstMessage) {
     // ── 5-agent pipeline ─────────────────────────────────────────────────────
 
-    // Step 0: Controller
-    res.write(`data: ${JSON.stringify({ step: "Контролёр проверяет достоверность..." })}\n\n`);
-    const controllerOutput = await callAI(openai, AGENT_0_SYSTEM, userTopic);
+    // Step 0: Controller — uses gpt-4o-search-preview for real web search
+    res.write(`data: ${JSON.stringify({ step: "Контролёр ищет источники в интернете..." })}\n\n`);
+    const controllerResult = await callAIWithWebSearch(AGENT_0_SYSTEM, userTopic);
+    const controllerOutput = controllerResult.content;
+    const foundUrls = controllerResult.urls;
+
+    // Append real URLs from search annotations to controller output
+    const urlsBlock = foundUrls.length > 0
+      ? `\n\nНайденные реальные URL (используй для строки «Источник:»):\n${foundUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
+      : "";
 
     // Step 1: Analyst — also extracts recommended day
     res.write(`data: ${JSON.stringify({ step: "Аналитик выделяет ключевые данные..." })}\n\n`);
-    const analystInput = `Запрос пользователя: ${userTopic}\n\nВывод Агента-Контролёра:\n${controllerOutput}`;
+    const analystInput = `Запрос пользователя: ${userTopic}\n\nВывод Агента-Контролёра:\n${controllerOutput}${urlsBlock}`;
     const analystOutput = await callAI(openai, AGENT_1_SYSTEM, analystInput);
 
     const recommendedDay = parseDayFromAnalyst(analystOutput);
@@ -355,7 +419,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
     // Step 2: Generator — creates draft post
     res.write(`data: ${JSON.stringify({ step: "Генератор создаёт черновик..." })}\n\n`);
-    const generatorInput = `Тема: ${userTopic}\n\nАнализ от Агента-Аналитика:\n${analystOutput}`;
+    const generatorInput = `Тема: ${userTopic}\n\nАнализ от Агента-Аналитика:\n${analystOutput}${urlsBlock}`;
     const generatorOutput = await callAI(openai, AGENT_2_SYSTEM, generatorInput);
 
     // Step 3: Critic — evaluates draft
