@@ -24,8 +24,9 @@ export default function Home() {
   const [aiResponse, setAiResponse] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
+  const todayIndex = new Date().getDay();
+  const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
+  const [recommendedDay, setRecommendedDay] = useState<number>(todayIndex);
   const [, setLocation] = useLocation();
 
   const createConversation = useCreateOpenaiConversation();
@@ -39,8 +40,9 @@ export default function Home() {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let finished = false;
 
-    while (true) {
+    while (!finished) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -48,10 +50,14 @@ export default function Home() {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
-        const parsed = JSON.parse(line.slice(6));
-        if (parsed.done) break;
-        if (parsed.day !== undefined && onDay) onDay(parsed.day);
-        if (parsed.content) onContent(parsed.content);
+        try {
+          const parsed = JSON.parse(line.slice(6));
+          if (parsed.day !== undefined && onDay) onDay(parsed.day);
+          if (parsed.content) onContent(parsed.content);
+          if (parsed.done) { finished = true; }
+        } catch {
+          // skip malformed lines
+        }
       }
     }
   };
@@ -61,8 +67,8 @@ export default function Home() {
 
     setIsGenerating(true);
     setAiResponse("");
-    setSelectedDay(null);
-    setRecommendedDay(null);
+    setSelectedDay(todayIndex);
+    setRecommendedDay(todayIndex);
 
     try {
       let currentConvId = conversationId;
