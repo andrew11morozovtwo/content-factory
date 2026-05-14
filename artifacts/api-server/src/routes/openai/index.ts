@@ -114,6 +114,18 @@ async function callAIWithWebSearch(systemPrompt: string, userMessage: string): P
   return { content, urls };
 }
 
+/** Гарантирует наличие #ЯИнженер в финальном посте. */
+function ensureYaInzhenerHashtag(text: string): string {
+  if (text.includes("#ЯИнженер")) return text;
+  // Найти строку с хэштегами (начинается с #) и добавить туда
+  const hashtagLineRegex = /^(#\S+(?:\s+#\S+)*)$/m;
+  if (hashtagLineRegex.test(text)) {
+    return text.replace(hashtagLineRegex, "$1 #ЯИнженер");
+  }
+  // Если строки с хэштегами нет — добавить в конец
+  return text.trimEnd() + "\n#ЯИнженер";
+}
+
 const AGENT_0_SYSTEM = `Ты — Агент-Контролёр. Проверяешь достоверность новости или темы, предложенной пользователем.
 
 Выполни следующие действия:
@@ -437,7 +449,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
     // Step 4: Updater — streams final post
     res.write(`data: ${JSON.stringify({ step: "Финализация поста..." })}\n\n`);
-    const updaterInput = `Тема: ${userTopic}\n\nПост от Агента-Генератора:\n${generatorOutput}\n\nКритика от Агента-Критика:\n${criticOutput}`;
+    const updaterInput = `Тема: ${userTopic}${urlsBlock}\n\nПост от Агента-Генератора:\n${generatorOutput}\n\nКритика от Агента-Критика:\n${criticOutput}`;
 
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -482,10 +494,18 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     }
   }
 
+  // Гарантируем наличие #ЯИнженер
+  const corrected = ensureYaInzhenerHashtag(fullResponse);
+  if (corrected !== fullResponse) {
+    // Отправить разницу клиенту (хвост, которого не хватало)
+    const suffix = corrected.slice(fullResponse.length);
+    res.write(`data: ${JSON.stringify({ content: suffix })}\n\n`);
+  }
+
   await db.insert(messages).values({
     conversationId: convId,
     role: "assistant",
-    content: fullResponse,
+    content: corrected,
   });
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
