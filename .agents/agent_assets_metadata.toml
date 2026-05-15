@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "6c3Njca3dlYBTyzp6_1BH"
+uri = "file://artifacts/api-server/src/routes/openai/prompts_download.txt"
+type = "text"
+title = "prompts.ts — промпты для AI-агентов"
