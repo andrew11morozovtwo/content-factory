@@ -18,15 +18,6 @@ const DAYS = [
 
 const DAYS_RU_FULL = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
 
-const DAY_THEMES: Record<number, string> = {
-  0: "безопасность, этика, карьера инженера",
-  1: "российские технологии",
-  2: "китайские технологии",
-  3: "ключевые мировые инженерные новости",
-  4: "ключевые мировые инженерные новости",
-  5: "военные технологии и разработки",
-  6: "дайджест недели",
-};
 
 export default function Home() {
   const [idea, setIdea] = useState("");
@@ -138,9 +129,8 @@ export default function Home() {
     setErrorMessage(null);
 
     try {
-      const dayName = DAYS_RU_FULL[selectedDay];
-      const dayTheme = DAY_THEMES[selectedDay];
-      const content = `День публикации: ${dayName} (тема дня: ${dayTheme})\nЗамечания пользователя: ${feedback}`;
+      const dayNote = `пост для ${DAYS_RU_FULL[selectedDay]}`;
+      const content = `Улучши пост (${dayNote}) с учётом замечаний: ${feedback}`;
 
       setAiResponse("");
 
