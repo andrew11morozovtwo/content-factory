@@ -30,6 +30,14 @@ export const ListPostsResponseItem = zod.object({
     .number()
     .nullable()
     .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
+  publishedAt: zod.coerce
+    .date()
+    .nullable()
+    .describe("Actual timestamp when post was published to VK"),
+  vkPostId: zod
+    .number()
+    .nullable()
+    .describe("VK wall post ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -70,6 +78,14 @@ export const GetPostResponse = zod.object({
     .number()
     .nullable()
     .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
+  publishedAt: zod.coerce
+    .date()
+    .nullable()
+    .describe("Actual timestamp when post was published to VK"),
+  vkPostId: zod
+    .number()
+    .nullable()
+    .describe("VK wall post ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -106,6 +122,14 @@ export const UpdatePostResponse = zod.object({
     .number()
     .nullable()
     .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
+  publishedAt: zod.coerce
+    .date()
+    .nullable()
+    .describe("Actual timestamp when post was published to VK"),
+  vkPostId: zod
+    .number()
+    .nullable()
+    .describe("VK wall post ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

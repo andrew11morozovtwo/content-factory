@@ -305,6 +305,13 @@ components:
         recommendedDay:
           type: ["integer", "null"]
           description: "AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: "Actual timestamp when post was published to VK"
+        vkPostId:
+          type: ["integer", "null"]
+          description: "VK wall post ID after publishing"
         createdAt:
           type: string
           format: date-time
@@ -320,6 +327,8 @@ components:
         - feedback
         - conversationId
         - recommendedDay
+        - publishedAt
+        - vkPostId
         - createdAt
         - updatedAt
 

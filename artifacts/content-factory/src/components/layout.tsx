@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { PenSquare, CalendarDays, Library, Zap } from "lucide-react";
+import { PenSquare, CalendarDays, Library, Zap, Archive } from "lucide-react";
 import { ReactNode } from "react";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -9,6 +9,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: "/", label: "Рабочий стол", icon: PenSquare },
     { href: "/calendar", label: "Календарь", icon: CalendarDays },
     { href: "/posts", label: "Библиотека", icon: Library },
+    { href: "/archive", label: "Архив", icon: Archive },
   ];
 
   return (

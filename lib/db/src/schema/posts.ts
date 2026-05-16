@@ -11,6 +11,8 @@ export const postsTable = pgTable("posts", {
   feedback: text("feedback"),
   conversationId: integer("conversation_id"),
   recommendedDay: integer("recommended_day"),
+  publishedAt: timestamp("published_at"),
+  vkPostId: integer("vk_post_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -38,6 +38,16 @@ export interface Post {
    * @nullable
    */
   recommendedDay: number | null;
+  /**
+   * Actual timestamp when post was published to VK
+   * @nullable
+   */
+  publishedAt: string | null;
+  /**
+   * VK wall post ID after publishing
+   * @nullable
+   */
+  vkPostId: number | null;
   createdAt: string;
   updatedAt: string;
 }

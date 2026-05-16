@@ -8,6 +8,7 @@ import { Layout } from "@/components/layout";
 import Home from "@/pages/home";
 import Posts from "@/pages/posts";
 import Calendar from "@/pages/calendar";
+import Archive from "@/pages/archive";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/posts" component={Posts} />
         <Route path="/calendar" component={Calendar} />
+        <Route path="/archive" component={Archive} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

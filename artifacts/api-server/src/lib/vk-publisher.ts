@@ -6,13 +6,12 @@ const VK_API_VERSION = "5.131";
 const VK_API_URL = "https://api.vk.com/method/wall.post";
 const POLL_INTERVAL_MS = 60_000;
 
-export async function publishPostToVk(postId: number, content: string): Promise<void> {
+export async function publishPostToVk(postId: number, content: string): Promise<number> {
   const token = process.env["VK_ACCESS_TOKEN"];
   const groupId = process.env["VK_GROUP_ID"];
 
   if (!token || !groupId) {
-    logger.warn({ postId }, "VK credentials missing, skipping publish");
-    return;
+    throw new Error("VK_ACCESS_TOKEN or VK_GROUP_ID not configured");
   }
 
   // Strip any non-numeric prefix (e.g. "club238494545" → "238494545")
@@ -38,7 +37,9 @@ export async function publishPostToVk(postId: number, content: string): Promise<
     throw new Error(`VK API error ${data.error.error_code}: ${data.error.error_msg}`);
   }
 
-  logger.info({ postId, vkPostId: data.response?.post_id }, "Published to VK");
+  const vkPostId = data.response!.post_id;
+  logger.info({ postId, vkPostId }, "Published to VK");
+  return vkPostId;
 }
 
 async function processDuePosts(): Promise<void> {
@@ -60,11 +61,11 @@ async function processDuePosts(): Promise<void> {
 
   for (const post of scheduledDue) {
     try {
-      await publishPostToVk(post.id, post.content);
+      const vkPostId = await publishPostToVk(post.id, post.content);
 
       await db
         .update(postsTable)
-        .set({ status: "published", updatedAt: new Date() })
+        .set({ status: "published", publishedAt: new Date(), vkPostId, updatedAt: new Date() })
         .where(eq(postsTable.id, post.id));
 
       logger.info({ postId: post.id, title: post.title }, "Post published and marked as published");

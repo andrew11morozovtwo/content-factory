@@ -119,8 +119,9 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
     return;
   }
 
+  let vkPostId: number;
   try {
-    await publishPostToVk(post.id, post.content);
+    vkPostId = await publishPostToVk(post.id, post.content);
   } catch (err) {
     req.log.error({ err, postId: post.id }, "Immediate VK publish failed");
     res.status(502).json({ error: "VK publish failed" });
@@ -129,7 +130,7 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
 
   const [updated] = await db
     .update(postsTable)
-    .set({ status: "published", scheduledAt: null, updatedAt: new Date() })
+    .set({ status: "published", scheduledAt: null, publishedAt: new Date(), vkPostId, updatedAt: new Date() })
     .where(eq(postsTable.id, params.data.id))
     .returning();
 
