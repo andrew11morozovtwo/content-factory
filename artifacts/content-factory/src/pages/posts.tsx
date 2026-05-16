@@ -4,6 +4,7 @@ import {
   useDeletePost,
   useUpdatePost,
   getListPostsQueryKey,
+  PostUpdateStatus,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,9 +25,10 @@ import {
   ArchiveRestore,
   Zap,
   Save,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "wouter";
-import { format } from "date-fns";
+import { format, isSameDay, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 
 const STATUS_MAP = {
@@ -40,6 +42,13 @@ interface EditState {
   id: number;
   title: string;
   content: string;
+  currentStatus: PostUpdateStatus;
+  currentScheduledAt: string | null;
+}
+
+interface ConflictInfo {
+  date: Date;
+  conflictingTitle: string;
 }
 
 export default function Posts() {
@@ -53,12 +62,27 @@ export default function Posts() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] = useState<ConflictInfo | null>(null);
 
   const filteredPosts = posts?.filter(
     (post) =>
       post.title.toLowerCase().includes(search.toLowerCase()) ||
       post.content.toLowerCase().includes(search.toLowerCase()),
   ) || [];
+
+  // Даты с уже запланированными постами (для календаря)
+  const scheduledDates: Date[] = (posts ?? [])
+    .filter((p) => p.status === "scheduled" && p.scheduledAt)
+    .map((p) => new Date(p.scheduledAt!));
+
+  const findConflict = (date: Date, excludeId: number) =>
+    (posts ?? []).find(
+      (p) =>
+        p.id !== excludeId &&
+        p.status === "scheduled" &&
+        p.scheduledAt &&
+        isSameDay(new Date(p.scheduledAt), date),
+    ) ?? null;
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
@@ -70,29 +94,39 @@ export default function Posts() {
     }
   };
 
-  const openEditor = (post: { id: number; title: string; content: string }) => {
-    setEditing({ id: post.id, title: post.title, content: post.content });
+  const openEditor = (post: {
+    id: number;
+    title: string;
+    content: string;
+    status: string;
+    scheduledAt: string | null;
+  }) => {
+    setEditing({
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      currentStatus: post.status as PostUpdateStatus,
+      currentScheduledAt: post.scheduledAt,
+    });
     setSelectedDate(undefined);
     setCalendarOpen(false);
+    setConflict(null);
   };
 
   const closeEditor = () => {
     setEditing(null);
     setSelectedDate(undefined);
     setCalendarOpen(false);
+    setConflict(null);
   };
 
-  const saveWith = async (patch: { status: string; scheduledAt?: string | null }) => {
+  const saveWith = async (patch: { status: PostUpdateStatus; scheduledAt?: string | null }) => {
     if (!editing) return;
     setSaving(true);
     try {
       await updatePost.mutateAsync({
         id: editing.id,
-        data: {
-          title: editing.title,
-          content: editing.content,
-          ...patch,
-        },
+        data: { title: editing.title, content: editing.content, ...patch },
       });
       invalidate();
       closeEditor();
@@ -102,13 +136,26 @@ export default function Posts() {
   };
 
   const handleDraft = () => saveWith({ status: "draft", scheduledAt: null });
+  const handlePublishNow = () => saveWith({ status: "published", scheduledAt: null });
 
-  const handleSchedule = (date: Date) => {
+  const trySchedule = (date: Date) => {
+    if (!editing) return;
     setCalendarOpen(false);
-    saveWith({ status: "scheduled", scheduledAt: date.toISOString() });
+    const existing = findConflict(date, editing.id);
+    if (existing) {
+      setSelectedDate(date);
+      setConflict({ date, conflictingTitle: existing.title });
+    } else {
+      setConflict(null);
+      saveWith({ status: "scheduled", scheduledAt: date.toISOString() });
+    }
   };
 
-  const handlePublishNow = () => saveWith({ status: "published", scheduledAt: null });
+  const forceSchedule = () => {
+    if (!conflict) return;
+    setConflict(null);
+    saveWith({ status: "scheduled", scheduledAt: conflict.date.toISOString() });
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -148,11 +195,11 @@ export default function Posts() {
                 {/* ── Заголовок карточки ── */}
                 <div className="flex flex-col sm:flex-row">
                   <div className="p-6 flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <Badge
                         variant="secondary"
                         className={
-                          STATUS_MAP[post.status as keyof typeof STATUS_MAP]?.color +
+                          (STATUS_MAP[post.status as keyof typeof STATUS_MAP]?.color ?? "") +
                           " border-none"
                         }
                       >
@@ -162,7 +209,7 @@ export default function Posts() {
                         {format(new Date(post.createdAt), "d MMMM yyyy", { locale: ru })}
                       </span>
                       {post.scheduledAt && (
-                        <span className="text-sm text-orange-600">
+                        <span className="text-sm text-orange-600 font-medium">
                           → {format(new Date(post.scheduledAt), "d MMMM yyyy", { locale: ru })}
                         </span>
                       )}
@@ -197,7 +244,7 @@ export default function Posts() {
                   </div>
                 </div>
 
-                {/* ── Панель редактирования (раскрывается) ── */}
+                {/* ── Панель редактирования ── */}
                 {isEditingThis && editing && (
                   <div className="border-t bg-muted/10 p-6 space-y-4">
                     <Input
@@ -214,6 +261,48 @@ export default function Posts() {
                       placeholder="Текст поста..."
                     />
 
+                    {/* Предупреждение о конфликте */}
+                    {conflict && (
+                      <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30 p-4">
+                        <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-3">
+                          <p className="text-sm text-orange-800 dark:text-orange-300">
+                            <strong>
+                              {format(conflict.date, "d MMMM yyyy", { locale: ru })}
+                            </strong>{" "}
+                            уже занято постом:{" "}
+                            <span className="italic">«{conflict.conflictingTitle}»</span>
+                          </p>
+                          <p className="text-xs text-orange-700 dark:text-orange-400">
+                            По правилу — один пост в день. Вы можете выбрать другую дату или поставить два поста на одну дату.
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300"
+                              onClick={() => {
+                                setConflict(null);
+                                setSelectedDate(undefined);
+                                setCalendarOpen(true);
+                              }}
+                            >
+                              Выбрать другую дату
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300"
+                              onClick={forceSchedule}
+                              disabled={saving}
+                            >
+                              Всё равно поставить
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Кнопки действий */}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button
@@ -228,13 +317,9 @@ export default function Posts() {
 
                       <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                         <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            disabled={saving}
-                            className="gap-2"
-                          >
+                          <Button variant="outline" disabled={saving} className="gap-2">
                             <CalendarIcon className="w-4 h-4" />
-                            {selectedDate
+                            {selectedDate && !conflict
                               ? format(selectedDate, "d MMMM yyyy", { locale: ru })
                               : "Запланировать"}
                           </Button>
@@ -244,22 +329,26 @@ export default function Posts() {
                             mode="single"
                             selected={selectedDate}
                             onSelect={(date) => {
-                              if (date) {
-                                setSelectedDate(date);
-                                handleSchedule(date);
-                              }
+                              if (date) trySchedule(date);
                             }}
-                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            disabled={(date) =>
+                              date < startOfDay(new Date())
+                            }
+                            modifiers={{ scheduled: scheduledDates }}
+                            modifiersClassNames={{
+                              scheduled:
+                                "bg-orange-100 text-orange-800 font-semibold dark:bg-orange-900/40 dark:text-orange-300",
+                            }}
                             initialFocus
                           />
+                          <div className="px-3 pb-3 pt-1 text-xs text-muted-foreground flex items-center gap-1.5">
+                            <span className="inline-block w-3 h-3 rounded bg-orange-200 dark:bg-orange-800" />
+                            Дата уже занята
+                          </div>
                         </PopoverContent>
                       </Popover>
 
-                      <Button
-                        onClick={handlePublishNow}
-                        disabled={saving}
-                        className="gap-2"
-                      >
+                      <Button onClick={handlePublishNow} disabled={saving} className="gap-2">
                         <Zap className="w-4 h-4" />
                         Опубликовать немедленно
                       </Button>
@@ -267,7 +356,10 @@ export default function Posts() {
                       <Button
                         variant="secondary"
                         onClick={() =>
-                          saveWith({ status: post.status, scheduledAt: post.scheduledAt ?? null })
+                          saveWith({
+                            status: editing.currentStatus,
+                            scheduledAt: editing.currentScheduledAt,
+                          })
                         }
                         disabled={saving}
                         className="gap-2 ml-auto"
