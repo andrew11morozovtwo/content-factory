@@ -222,7 +222,7 @@ export default function Home() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-[600px]">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[600px] lg:h-full">
       {/* LEFT COLUMN */}
       <div className="flex flex-col gap-4">
         {/* Idea input */}

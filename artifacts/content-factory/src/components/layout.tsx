@@ -19,13 +19,13 @@ const SECURITY_LINKS = [
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
 
-  const allLinks = [...ENGINEER_LINKS, { href: "/archive", label: "Архив", icon: Archive }];
   const currentLabel =
     ENGINEER_LINKS.find((l) => l.href === location)?.label ?? "Контент Фабрика";
 
   return (
     <div className="flex min-h-[100dvh] bg-background">
-      <aside className="w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border text-sidebar-foreground flex flex-col">
+      {/* ── Боковая панель (только десктоп) ── */}
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border text-sidebar-foreground flex-col">
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border gap-2">
           <div className="bg-primary p-1.5 rounded-md text-primary-foreground">
             <Zap className="w-5 h-5" />
@@ -34,7 +34,6 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {/* ── Канал 1: VK Я-Инженер ── */}
           <div className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mb-2 px-2 pt-2">
             VK Я-Инженер
           </div>
@@ -57,10 +56,8 @@ export function Layout({ children }: { children: ReactNode }) {
             );
           })}
 
-          {/* ── Разделитель ── */}
           <div className="pt-4" />
 
-          {/* ── Канал 2: VK Безопасность всегда ── */}
           <div className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mb-2 px-2">
             VK Безопасность всегда
           </div>
@@ -83,9 +80,18 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-16 flex-shrink-0 border-b bg-card flex items-center px-8 shadow-sm z-10 relative">
-          <h1 className="font-medium text-lg">
+      {/* ── Основное содержимое ── */}
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Шапка */}
+        <div className="h-14 md:h-16 flex-shrink-0 border-b bg-card flex items-center px-4 md:px-8 shadow-sm z-10 relative gap-3">
+          {/* Логотип — только на мобильном (замена сайдбару) */}
+          <div className="flex md:hidden items-center gap-2 shrink-0">
+            <div className="bg-primary p-1 rounded-md text-primary-foreground">
+              <Zap className="w-4 h-4" />
+            </div>
+          </div>
+
+          <h1 className="font-medium text-base md:text-lg truncate">
             {location === "/" ? (
               <a
                 href="https://vk.com/club238494545"
@@ -100,8 +106,38 @@ export function Layout({ children }: { children: ReactNode }) {
             )}
           </h1>
         </div>
-        <div className="flex-1 overflow-auto p-8">{children}</div>
+
+        {/* Контент с отступом снизу под нижнюю панель на мобильном */}
+        <div className="flex-1 overflow-auto p-4 md:p-8 pb-24 md:pb-8">
+          {children}
+        </div>
       </main>
+
+      {/* ── Нижняя навигация (только мобильный) ── */}
+      <nav className="fixed bottom-0 inset-x-0 md:hidden bg-card border-t border-border z-50 safe-area-bottom">
+        <div className="flex items-stretch h-16">
+          {ENGINEER_LINKS.map((link) => {
+            const Icon = link.icon;
+            const isActive = location === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                <span className="leading-none">
+                  {link.label === "Рабочий стол" ? "Создать" : link.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
