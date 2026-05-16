@@ -15,8 +15,11 @@ export async function publishPostToVk(postId: number, content: string): Promise<
     return;
   }
 
+  // Strip any non-numeric prefix (e.g. "club238494545" → "238494545")
+  const numericGroupId = groupId.replace(/\D/g, "");
+
   const params = new URLSearchParams({
-    owner_id: `-${groupId}`,
+    owner_id: `-${numericGroupId}`,
     message: content,
     access_token: token,
     v: VK_API_VERSION,
