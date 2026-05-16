@@ -146,18 +146,40 @@ export default function Posts() {
   };
 
   const handleDraft = () => saveWith({ status: "draft", scheduledAt: null });
-  const handlePublishNow = () => saveWith({ status: "published", scheduledAt: null });
+
+  const handlePublishNow = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await updatePost.mutateAsync({
+        id: editing.id,
+        data: { title: editing.title, content: editing.content },
+      });
+      await fetch(`/api/posts/${editing.id}/publish`, { method: "POST" });
+      invalidate();
+      closeEditor();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const atNoon = (date: Date): Date => {
+    const d = new Date(date);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  };
 
   const trySchedule = (date: Date) => {
     if (!editing) return;
     setCalendarOpen(false);
-    const existing = findConflict(date, editing.id);
+    const noon = atNoon(date);
+    const existing = findConflict(noon, editing.id);
     if (existing) {
-      setSelectedDate(date);
-      setConflict({ date, conflictingTitle: existing.title });
+      setSelectedDate(noon);
+      setConflict({ date: noon, conflictingTitle: existing.title });
     } else {
       setConflict(null);
-      saveWith({ status: "scheduled", scheduledAt: date.toISOString() });
+      saveWith({ status: "scheduled", scheduledAt: noon.toISOString() });
     }
   };
 

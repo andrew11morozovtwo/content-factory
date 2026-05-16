@@ -6,7 +6,7 @@ const VK_API_VERSION = "5.131";
 const VK_API_URL = "https://api.vk.com/method/wall.post";
 const POLL_INTERVAL_MS = 60_000;
 
-async function publishPostToVk(postId: number, content: string): Promise<void> {
+export async function publishPostToVk(postId: number, content: string): Promise<void> {
   const token = process.env["VK_ACCESS_TOKEN"];
   const groupId = process.env["VK_GROUP_ID"];
 

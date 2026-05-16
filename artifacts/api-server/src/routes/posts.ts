@@ -12,6 +12,7 @@ import {
   DeletePostParams,
   GetPostStatsResponse,
 } from "@workspace/api-zod";
+import { publishPostToVk } from "../lib/vk-publisher.js";
 
 const router: IRouter = Router();
 
@@ -103,6 +104,36 @@ router.patch("/posts/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdatePostResponse.parse(post));
+});
+
+router.post("/posts/:id/publish", async (req, res): Promise<void> => {
+  const params = GetPostParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, params.data.id));
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+
+  try {
+    await publishPostToVk(post.id, post.content);
+  } catch (err) {
+    req.log.error({ err, postId: post.id }, "Immediate VK publish failed");
+    res.status(502).json({ error: "VK publish failed" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(postsTable)
+    .set({ status: "published", scheduledAt: null, updatedAt: new Date() })
+    .where(eq(postsTable.id, params.data.id))
+    .returning();
+
+  res.json(GetPostResponse.parse(updated));
 });
 
 router.delete("/posts/:id", async (req, res): Promise<void> => {
