@@ -29,7 +29,8 @@ export default function Home() {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
-  const [recommendedDay, setRecommendedDay] = useState<number>(todayIndex);
+  const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
+  const [userPickedDay, setUserPickedDay] = useState(false);
   const [, setLocation] = useLocation();
 
   const createConversation = useCreateOpenaiConversation();
@@ -79,7 +80,8 @@ export default function Home() {
     setCurrentStep(null);
     setErrorMessage(null);
     setSelectedDay(todayIndex);
-    setRecommendedDay(todayIndex);
+    setRecommendedDay(null);
+    setUserPickedDay(false);
 
     try {
       let currentConvId = conversationId;
@@ -105,7 +107,10 @@ export default function Home() {
         },
         (day) => {
           setRecommendedDay(day);
-          setSelectedDay(day);
+          setUserPickedDay((picked) => {
+            if (!picked) setSelectedDay(day);
+            return picked;
+          });
         },
         (step) => {
           setCurrentStep(step);
@@ -176,7 +181,7 @@ export default function Home() {
           content: aiResponse,
           status: "draft",
           conversationId,
-          recommendedDay,
+          recommendedDay: selectedDay,
         },
       });
       setLocation("/posts");
@@ -227,11 +232,16 @@ export default function Home() {
         {/* Day selector */}
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="bg-muted/30 pb-3 border-b">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center flex-wrap gap-x-2 gap-y-1">
               День публикации
-              {recommendedDay !== null && (
-                <span className="ml-2 text-xs text-primary font-normal">
-                  — рекомендован {DAYS.find((d) => d.index === recommendedDay)?.label}
+              {userPickedDay && recommendedDay !== null && recommendedDay !== selectedDay && (
+                <span className="text-xs text-muted-foreground/70 font-normal">
+                  (AI рекомендовал {DAYS.find((d) => d.index === recommendedDay)?.label})
+                </span>
+              )}
+              {!userPickedDay && recommendedDay !== null && (
+                <span className="text-xs text-primary font-normal">
+                  — AI рекомендует {DAYS.find((d) => d.index === recommendedDay)?.label}
                 </span>
               )}
             </CardTitle>
@@ -246,9 +256,16 @@ export default function Home() {
                     key={day.index}
                     variant={isSelected ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedDay(day.index)}
+                    onClick={() => {
+                      setSelectedDay(day.index);
+                      setUserPickedDay(true);
+                    }}
                     className={`flex flex-col h-auto py-2 px-1 text-xs font-medium transition-all ${
-                      isSelected && isRecommended
+                      isRecommended && !isSelected
+                        ? "border-primary/50 text-primary"
+                        : ""
+                    } ${
+                      isSelected && isRecommended && !userPickedDay
                         ? "ring-2 ring-primary ring-offset-1"
                         : ""
                     }`}
