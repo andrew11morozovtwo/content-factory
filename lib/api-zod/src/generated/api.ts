@@ -26,6 +26,10 @@ export const ListPostsResponseItem = zod.object({
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),
+  recommendedDay: zod
+    .number()
+    .nullable()
+    .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -41,6 +45,10 @@ export const CreatePostBody = zod.object({
   scheduledAt: zod.coerce.date().nullish(),
   feedback: zod.string().nullish(),
   conversationId: zod.number().nullish(),
+  recommendedDay: zod
+    .number()
+    .nullish()
+    .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
 });
 
 /**
@@ -58,6 +66,10 @@ export const GetPostResponse = zod.object({
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),
+  recommendedDay: zod
+    .number()
+    .nullable()
+    .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -76,6 +88,10 @@ export const UpdatePostBody = zod.object({
   scheduledAt: zod.coerce.date().nullish(),
   feedback: zod.string().nullish(),
   conversationId: zod.number().nullish(),
+  recommendedDay: zod
+    .number()
+    .nullish()
+    .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
 });
 
 export const UpdatePostResponse = zod.object({
@@ -86,6 +102,10 @@ export const UpdatePostResponse = zod.object({
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),
+  recommendedDay: zod
+    .number()
+    .nullable()
+    .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

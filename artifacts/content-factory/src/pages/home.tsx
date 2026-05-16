@@ -176,6 +176,7 @@ export default function Home() {
           content: aiResponse,
           status: "draft",
           conversationId,
+          recommendedDay,
         },
       });
       setLocation("/posts");

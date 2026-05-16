@@ -31,6 +31,16 @@ import { Link } from "wouter";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ru } from "date-fns/locale";
 
+const DAY_LABELS: Record<number, { short: string; theme: string }> = {
+  0: { short: "Вс", theme: "безопасность / этика" },
+  1: { short: "Пн", theme: "российские технологии" },
+  2: { short: "Вт", theme: "китайские технологии" },
+  3: { short: "Ср", theme: "мировые новости" },
+  4: { short: "Чт", theme: "мировые новости" },
+  5: { short: "Пт", theme: "военные технологии" },
+  6: { short: "Сб", theme: "дайджест" },
+};
+
 const STATUS_MAP = {
   draft: { label: "Черновик", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
   scheduled: { label: "Запланирован", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
@@ -211,6 +221,14 @@ export default function Posts() {
                       {post.scheduledAt && (
                         <span className="text-sm text-orange-600 font-medium">
                           → {format(new Date(post.scheduledAt), "d MMMM yyyy", { locale: ru })}
+                        </span>
+                      )}
+                      {post.recommendedDay != null && DAY_LABELS[post.recommendedDay] && (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                          title={`AI рекомендует: ${DAY_LABELS[post.recommendedDay].theme}`}
+                        >
+                          🤖 {DAY_LABELS[post.recommendedDay].short} · {DAY_LABELS[post.recommendedDay].theme}
                         </span>
                       )}
                     </div>

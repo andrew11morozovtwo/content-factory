@@ -302,6 +302,9 @@ components:
           type: ["string", "null"]
         conversationId:
           type: ["integer", "null"]
+        recommendedDay:
+          type: ["integer", "null"]
+          description: "AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"
         createdAt:
           type: string
           format: date-time
@@ -316,6 +319,7 @@ components:
         - scheduledAt
         - feedback
         - conversationId
+        - recommendedDay
         - createdAt
         - updatedAt
 
@@ -336,6 +340,9 @@ components:
           type: ["string", "null"]
         conversationId:
           type: ["integer", "null"]
+        recommendedDay:
+          type: ["integer", "null"]
+          description: "AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"
       required:
         - title
         - content
@@ -357,6 +364,9 @@ components:
           type: ["string", "null"]
         conversationId:
           type: ["integer", "null"]
+        recommendedDay:
+          type: ["integer", "null"]
+          description: "AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"
 
     PostStats:
       type: object

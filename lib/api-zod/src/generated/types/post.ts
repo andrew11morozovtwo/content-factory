@@ -18,6 +18,11 @@ export interface Post {
   feedback: string | null;
   /** @nullable */
   conversationId: number | null;
+  /**
+   * AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)
+   * @nullable
+   */
+  recommendedDay: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

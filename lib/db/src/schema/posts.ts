@@ -10,6 +10,7 @@ export const postsTable = pgTable("posts", {
   scheduledAt: timestamp("scheduled_at"),
   feedback: text("feedback"),
   conversationId: integer("conversation_id"),
+  recommendedDay: integer("recommended_day"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

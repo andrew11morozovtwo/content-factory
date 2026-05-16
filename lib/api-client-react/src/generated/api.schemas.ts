@@ -33,6 +33,11 @@ export interface Post {
   feedback: string | null;
   /** @nullable */
   conversationId: number | null;
+  /**
+   * AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)
+   * @nullable
+   */
+  recommendedDay: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +62,11 @@ export interface PostInput {
   feedback?: string | null;
   /** @nullable */
   conversationId?: number | null;
+  /**
+   * AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)
+   * @nullable
+   */
+  recommendedDay?: number | null;
 }
 
 export type PostUpdateStatus =
@@ -79,6 +89,11 @@ export interface PostUpdate {
   feedback?: string | null;
   /** @nullable */
   conversationId?: number | null;
+  /**
+   * AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)
+   * @nullable
+   */
+  recommendedDay?: number | null;
 }
 
 export interface PostStats {
