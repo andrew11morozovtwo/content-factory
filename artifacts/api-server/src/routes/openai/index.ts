@@ -274,14 +274,10 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     // ── 5-agent pipeline ─────────────────────────────────────────────────────
 
     // Step 0: Controller — uses gpt-4o-search-preview for real web search
-    // ── WEB SEARCH DISABLED (for testing) — раскомментировать для продакшена ──
-    // res.write(`data: ${JSON.stringify({ step: "Контролёр ищет источники в интернете..." })}\n\n`);
-    // const controllerResult = await callAIWithWebSearch(AGENT_CONTROLLER, userTopic);
-    // const controllerOutput = controllerResult.content;
-    // const foundUrls = controllerResult.urls;
-    // ── STUB: веб-поиск отключён ──────────────────────────────────────────────
-    const controllerOutput = "";
-    const foundUrls: string[] = [];
+    res.write(`data: ${JSON.stringify({ step: "Контролёр ищет источники в интернете..." })}\n\n`);
+    const controllerResult = await callAIWithWebSearch(AGENT_CONTROLLER, userTopic);
+    const controllerOutput = controllerResult.content;
+    const foundUrls = controllerResult.urls;
 
     // Extract URL provided by the user in their request (highest priority)
     const userProvidedUrl = extractUserUrl(userTopic);
