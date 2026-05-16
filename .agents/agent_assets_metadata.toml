@@ -18,3 +18,9 @@ id = "0UCRX4TDL-JoK4R_1L3qh"
 uri = "file://README.md"
 type = "text"
 title = "README — Контент Фабрика v1.0"
+
+[[outputs]]
+id = "GYiNYOCClt9verwS3rLrS"
+uri = "file://GUIDE.md"
+type = "text"
+title = "Инструкция пользователя — Контент Фабрика"
