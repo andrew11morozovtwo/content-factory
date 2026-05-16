@@ -174,7 +174,7 @@ export default function Home() {
 
   const getNextDateForDay = (dayIndex: number): Date => {
     const today = new Date();
-    today.setHours(16, 5, 0, 0);
+    today.setHours(16, 30, 0, 0);
     const todayDay = today.getDay();
     let daysUntil = dayIndex - todayDay;
     if (daysUntil < 0) daysUntil += 7;

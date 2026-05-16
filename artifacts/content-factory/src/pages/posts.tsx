@@ -165,7 +165,7 @@ export default function Posts() {
 
   const atNoon = (date: Date): Date => {
     const d = new Date(date);
-    d.setHours(16, 5, 0, 0);
+    d.setHours(16, 30, 0, 0);
     return d;
   };
 
