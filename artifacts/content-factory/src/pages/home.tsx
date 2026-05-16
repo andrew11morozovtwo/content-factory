@@ -41,6 +41,7 @@ export default function Home() {
     onDay?: (day: number) => void,
     onStep?: (step: string) => void,
     onError?: (msg: string) => void,
+    onCorrected?: (text: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -60,6 +61,7 @@ export default function Home() {
           if (parsed.step !== undefined && onStep) onStep(parsed.step);
           if (parsed.day !== undefined && onDay) onDay(parsed.day);
           if (parsed.content) onContent(parsed.content);
+          if (parsed.corrected !== undefined && onCorrected) onCorrected(parsed.corrected);
           if (parsed.error && onError) onError(parsed.error);
           if (parsed.done) { finished = true; }
         } catch {
@@ -111,6 +113,9 @@ export default function Home() {
         (msg) => {
           setErrorMessage(msg);
         },
+        (text) => {
+          setAiResponse(text);
+        },
       );
     } catch (error) {
       console.error(error);
@@ -149,6 +154,7 @@ export default function Home() {
         undefined,
         (step) => setCurrentStep(step),
         (msg) => setErrorMessage(msg),
+        (text) => setAiResponse(text),
       );
 
       setFeedback("");

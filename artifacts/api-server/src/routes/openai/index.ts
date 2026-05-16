@@ -128,6 +128,11 @@ function extractUserUrl(text: string): string | null {
   return match ? match[0] : null;
 }
 
+/** Убирает Markdown-разметку (**bold**, *italic*), которую VK не поддерживает. */
+function stripMarkdown(text: string): string {
+  return text.replace(/\*\*/g, "").replace(/(?<!\*)\*(?!\*)/g, "");
+}
+
 /** Гарантирует наличие #ЯИнженер в финальном посте. */
 function ensureYaInzhenerHashtag(text: string): string {
   if (text.includes("#ЯИнженер")) return text;
@@ -355,11 +360,13 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     }
   }
 
+  // Убираем Markdown-разметку (VK не поддерживает **bold** и т.п.)
+  const stripped = stripMarkdown(fullResponse);
   // Гарантируем наличие #ЯИнженер
-  const corrected = ensureYaInzhenerHashtag(fullResponse);
+  const corrected = ensureYaInzhenerHashtag(stripped);
+  // Если текст изменился — отправляем финальную исправленную версию целиком
   if (corrected !== fullResponse) {
-    const suffix = corrected.slice(fullResponse.length);
-    res.write(`data: ${JSON.stringify({ content: suffix })}\n\n`);
+    res.write(`data: ${JSON.stringify({ corrected })}\n\n`);
   }
 
   await db.insert(messages).values({
