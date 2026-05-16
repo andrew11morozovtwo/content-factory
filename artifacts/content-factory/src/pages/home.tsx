@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost } from "@workspace/api-client-react";
-import { Bot, Send, Save, ArrowRight, Loader2, CalendarCheck } from "lucide-react";
+import { Bot, Send, Save, ArrowRight, Loader2, Calendar } from "lucide-react";
 
 const DAYS = [
   { label: "Пн", index: 1 },
@@ -360,7 +360,7 @@ export default function Home() {
                   className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
                   data-testid="button-schedule-now"
                 >
-                  <CalendarCheck className="w-4 h-4 mr-2" />
+                  <Calendar className="w-4 h-4 mr-2" />
                   В публикацию
                 </Button>
                 <Button
