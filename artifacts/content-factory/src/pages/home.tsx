@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost } from "@workspace/api-client-react";
-import { Bot, Send, Save, ArrowRight, Loader2 } from "lucide-react";
+import { Bot, Send, Save, ArrowRight, Loader2, CalendarCheck } from "lucide-react";
 
 const DAYS = [
   { label: "Пн", index: 1 },
@@ -172,6 +172,17 @@ export default function Home() {
     }
   };
 
+  const getNextDateForDay = (dayIndex: number): Date => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const todayDay = today.getDay();
+    let daysUntil = dayIndex - todayDay;
+    if (daysUntil < 0) daysUntil += 7;
+    const result = new Date(today);
+    result.setDate(today.getDate() + daysUntil);
+    return result;
+  };
+
   const handleAccept = async () => {
     if (!aiResponse) return;
     try {
@@ -185,6 +196,26 @@ export default function Home() {
         },
       });
       setLocation("/posts");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleScheduleNow = async () => {
+    if (!aiResponse) return;
+    try {
+      const scheduledAt = getNextDateForDay(selectedDay);
+      await createPost.mutateAsync({
+        data: {
+          title: idea.slice(0, 50) || "Новый пост",
+          content: aiResponse,
+          status: "scheduled",
+          conversationId,
+          recommendedDay: selectedDay,
+          scheduledAt: scheduledAt.toISOString(),
+        },
+      });
+      setLocation("/calendar");
     } catch (err) {
       console.error(err);
     }
@@ -317,21 +348,32 @@ export default function Home() {
       {/* RIGHT COLUMN */}
       <div className="flex flex-col">
         <Card className="flex-1 flex flex-col border-border/50 shadow-sm">
-          <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground shrink-0">
               Результат
             </CardTitle>
             {aiResponse && !isGenerating && (
-              <Button
-                onClick={handleAccept}
-                size="sm"
-                variant="secondary"
-                className="h-8"
-                data-testid="button-accept-post"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Принять пост
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleScheduleNow}
+                  size="sm"
+                  className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+                  data-testid="button-schedule-now"
+                >
+                  <CalendarCheck className="w-4 h-4 mr-2" />
+                  В публикацию
+                </Button>
+                <Button
+                  onClick={handleAccept}
+                  size="sm"
+                  variant="secondary"
+                  className="h-8"
+                  data-testid="button-accept-post"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Принять пост
+                </Button>
+              </div>
             )}
           </CardHeader>
           <CardContent className="p-6 flex-1 overflow-auto whitespace-pre-wrap font-mono text-sm leading-relaxed">
