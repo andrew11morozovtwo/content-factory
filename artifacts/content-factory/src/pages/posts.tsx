@@ -357,6 +357,7 @@ export default function Posts() {
                               scheduled:
                                 "bg-orange-100 text-orange-800 font-semibold dark:bg-orange-900/40 dark:text-orange-300",
                             }}
+                            weekStartsOn={1}
                             initialFocus
                           />
                           <div className="px-3 pb-3 pt-1 text-xs text-muted-foreground flex items-center gap-1.5">
