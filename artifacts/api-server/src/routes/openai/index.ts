@@ -122,6 +122,12 @@ async function callAIWithWebSearch(systemPrompt: string, userMessage: string): P
   return { content, urls };
 }
 
+/** Извлекает первый URL из текста запроса пользователя (если есть). */
+function extractUserUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/[^\s，,\)]+/);
+  return match ? match[0] : null;
+}
+
 /** Гарантирует наличие #ЯИнженер в финальном посте. */
 function ensureYaInzhenerHashtag(text: string): string {
   if (text.includes("#ЯИнженер")) return text;
@@ -268,10 +274,21 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     const controllerOutput = controllerResult.content;
     const foundUrls = controllerResult.urls;
 
-    // Append real URLs from search annotations to controller output
-    const urlsBlock = foundUrls.length > 0
-      ? `\n\nНайденные реальные URL (используй для строки «Источник:»):\n${foundUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
-      : "";
+    // Extract URL provided by the user in their request (highest priority)
+    const userProvidedUrl = extractUserUrl(userTopic);
+
+    // Build urlsBlock: user-provided URL goes first and is marked as mandatory
+    let urlsBlock = "";
+    if (userProvidedUrl) {
+      urlsBlock = `\n\nВАЖНО — URL ОТ ПОЛЬЗОВАТЕЛЯ (ОБЯЗАТЕЛЬНО использовать в строке «Источник:», не заменять другим): ${userProvidedUrl}`;
+      if (foundUrls.length > 0) {
+        urlsBlock += `\n\nДополнительные найденные URL (только для справки, НЕ использовать в «Источник:»):\n${foundUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`;
+      }
+    } else if (foundUrls.length > 0) {
+      urlsBlock = `\n\nНайденные реальные URL (используй для строки «Источник:»):\n${foundUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`;
+    }
+
+    logger.info({ userProvidedUrl, foundUrls }, "URL resolution");
 
     // Step 1: Analyst — also extracts recommended day
     res.write(`data: ${JSON.stringify({ step: "Аналитик выделяет ключевые данные..." })}\n\n`);
