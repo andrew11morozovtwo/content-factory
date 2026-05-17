@@ -62,6 +62,7 @@ async function processDuePosts(): Promise<void> {
 
   for (const post of scheduledDue) {
     let vkPostId: number | undefined;
+    let telegramMessageId: number | undefined;
 
     // Publish to VK
     try {
@@ -72,7 +73,7 @@ async function processDuePosts(): Promise<void> {
 
     // Publish to Telegram (independently — VK failure doesn't block it)
     try {
-      await publishPostToTelegram(post.id, post.content);
+      telegramMessageId = await publishPostToTelegram(post.id, post.content);
     } catch (err) {
       logger.error({ err, postId: post.id }, "Failed to publish post to Telegram");
     }
@@ -80,7 +81,7 @@ async function processDuePosts(): Promise<void> {
     // Mark as published regardless of which channels succeeded
     await db
       .update(postsTable)
-      .set({ status: "published", publishedAt: new Date(), vkPostId: vkPostId ?? null, updatedAt: new Date() })
+      .set({ status: "published", publishedAt: new Date(), vkPostId: vkPostId ?? null, telegramMessageId: telegramMessageId ?? null, updatedAt: new Date() })
       .where(eq(postsTable.id, post.id));
 
     logger.info({ postId: post.id, title: post.title }, "Post processed and marked as published");

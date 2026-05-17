@@ -33,6 +33,11 @@ export interface Post {
    * @nullable
    */
   vkPostId: number | null;
+  /**
+   * Telegram message ID after publishing
+   * @nullable
+   */
+  telegramMessageId: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

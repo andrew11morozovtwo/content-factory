@@ -38,7 +38,7 @@
 - Contract-first API: OpenAPI YAML → Orval codegen → React Query hooks + Zod schemas. Never hand-write fetch calls on the frontend.
 - VK and Telegram publish independently: a failure in one channel does not block the other (except VK failure on immediate publish aborts the request).
 - Scheduled publisher polls every 60s via `setInterval`; runs immediately on startup to catch missed posts.
-- Posts table uses `scheduledAt` (nullable) to determine when to publish; `publishedAt` + `vkPostId` are set after successful publish.
+- Posts table uses `scheduledAt` (nullable) to determine when to publish; `publishedAt`, `vkPostId`, and `telegramMessageId` are set after successful publish.
 - `VK_GROUP_ID` may be prefixed with "club" — the publisher strips non-numeric chars automatically.
 
 ## Product

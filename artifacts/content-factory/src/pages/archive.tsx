@@ -18,6 +18,7 @@ const DAY_LABELS: Record<number, { short: string; theme: string }> = {
 };
 
 const VK_GROUP_NUMERIC = "238494545";
+const TG_CHANNEL = "i_am_an_engineer1";
 
 export default function ArchivePage() {
   const { data: posts, isLoading } = useListPosts();
@@ -73,6 +74,9 @@ export default function ArchivePage() {
             const vkUrl = post.vkPostId
               ? `https://vk.com/wall-${VK_GROUP_NUMERIC}_${post.vkPostId}`
               : null;
+            const tgUrl = post.telegramMessageId
+              ? `https://t.me/${TG_CHANNEL}/${post.telegramMessageId}`
+              : null;
             const dayInfo = post.recommendedDay != null ? DAY_LABELS[post.recommendedDay] : null;
 
             return (
@@ -104,7 +108,7 @@ export default function ArchivePage() {
                       <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{post.content}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                  <div className="flex items-center gap-1 shrink-0 mt-0.5">
                     {vkUrl && (
                       <a
                         href={vkUrl}
@@ -113,6 +117,18 @@ export default function ArchivePage() {
                         onClick={(e) => e.stopPropagation()}
                         className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 transition-colors"
                         title="Открыть в VK"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                    {tgUrl && (
+                      <a
+                        href={tgUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-500 dark:text-sky-400 transition-colors"
+                        title="Открыть в Telegram"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
@@ -134,19 +150,34 @@ export default function ArchivePage() {
                       <span className="text-xs text-muted-foreground">
                         Создан: {format(new Date(post.createdAt), "d MMMM yyyy", { locale: ru })}
                       </span>
-                      {vkUrl ? (
-                        <a
-                          href={vkUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Открыть в VK
-                        </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">VK ID не сохранён</span>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {vkUrl ? (
+                          <a
+                            href={vkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            VK
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">VK ID не сохранён</span>
+                        )}
+                        {tgUrl ? (
+                          <a
+                            href={tgUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-sky-500 dark:text-sky-400 hover:underline"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Telegram
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">TG ID не сохранён</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

@@ -130,15 +130,16 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
   }
 
   // Publish to Telegram independently — don't abort if it fails
+  let telegramMessageId: number | undefined;
   try {
-    await publishPostToTelegram(post.id, post.content);
+    telegramMessageId = await publishPostToTelegram(post.id, post.content);
   } catch (err) {
     req.log.error({ err, postId: post.id }, "Immediate Telegram publish failed");
   }
 
   const [updated] = await db
     .update(postsTable)
-    .set({ status: "published", scheduledAt: null, publishedAt: new Date(), vkPostId, updatedAt: new Date() })
+    .set({ status: "published", scheduledAt: null, publishedAt: new Date(), vkPostId, telegramMessageId: telegramMessageId ?? null, updatedAt: new Date() })
     .where(eq(postsTable.id, params.data.id))
     .returning();
 

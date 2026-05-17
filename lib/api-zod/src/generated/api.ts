@@ -38,6 +38,10 @@ export const ListPostsResponseItem = zod.object({
     .number()
     .nullable()
     .describe("VK wall post ID after publishing"),
+  telegramMessageId: zod
+    .number()
+    .nullable()
+    .describe("Telegram message ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -86,6 +90,10 @@ export const GetPostResponse = zod.object({
     .number()
     .nullable()
     .describe("VK wall post ID after publishing"),
+  telegramMessageId: zod
+    .number()
+    .nullable()
+    .describe("Telegram message ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -130,6 +138,10 @@ export const UpdatePostResponse = zod.object({
     .number()
     .nullable()
     .describe("VK wall post ID after publishing"),
+  telegramMessageId: zod
+    .number()
+    .nullable()
+    .describe("Telegram message ID after publishing"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

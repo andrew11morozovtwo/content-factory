@@ -13,6 +13,7 @@ export const postsTable = pgTable("posts", {
   recommendedDay: integer("recommended_day"),
   publishedAt: timestamp("published_at"),
   vkPostId: integer("vk_post_id"),
+  telegramMessageId: integer("telegram_message_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

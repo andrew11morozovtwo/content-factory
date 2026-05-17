@@ -312,6 +312,9 @@ components:
         vkPostId:
           type: ["integer", "null"]
           description: "VK wall post ID after publishing"
+        telegramMessageId:
+          type: ["integer", "null"]
+          description: "Telegram message ID after publishing"
         createdAt:
           type: string
           format: date-time
@@ -329,6 +332,7 @@ components:
         - recommendedDay
         - publishedAt
         - vkPostId
+        - telegramMessageId
         - createdAt
         - updatedAt
 
