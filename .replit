@@ -37,3 +37,8 @@ externalPort = 3001
 [[ports]]
 localPort = 24148
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+TELEGRAM_CHANNEL_ID = "@i_am_an_engineer1"

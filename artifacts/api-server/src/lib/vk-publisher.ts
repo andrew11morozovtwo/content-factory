@@ -1,6 +1,7 @@
 import { lte, eq } from "drizzle-orm";
 import { db, postsTable } from "@workspace/db";
 import { logger } from "./logger";
+import { publishPostToTelegram } from "./telegram-publisher.js";
 
 const VK_API_VERSION = "5.131";
 const VK_API_URL = "https://api.vk.com/method/wall.post";
@@ -60,18 +61,29 @@ async function processDuePosts(): Promise<void> {
   logger.info({ count: scheduledDue.length }, "Processing due posts for VK");
 
   for (const post of scheduledDue) {
+    let vkPostId: number | undefined;
+
+    // Publish to VK
     try {
-      const vkPostId = await publishPostToVk(post.id, post.content);
-
-      await db
-        .update(postsTable)
-        .set({ status: "published", publishedAt: new Date(), vkPostId, updatedAt: new Date() })
-        .where(eq(postsTable.id, post.id));
-
-      logger.info({ postId: post.id, title: post.title }, "Post published and marked as published");
+      vkPostId = await publishPostToVk(post.id, post.content);
     } catch (err) {
       logger.error({ err, postId: post.id }, "Failed to publish post to VK");
     }
+
+    // Publish to Telegram (independently — VK failure doesn't block it)
+    try {
+      await publishPostToTelegram(post.id, post.content);
+    } catch (err) {
+      logger.error({ err, postId: post.id }, "Failed to publish post to Telegram");
+    }
+
+    // Mark as published regardless of which channels succeeded
+    await db
+      .update(postsTable)
+      .set({ status: "published", publishedAt: new Date(), vkPostId: vkPostId ?? null, updatedAt: new Date() })
+      .where(eq(postsTable.id, post.id));
+
+    logger.info({ postId: post.id, title: post.title }, "Post processed and marked as published");
   }
 }
 

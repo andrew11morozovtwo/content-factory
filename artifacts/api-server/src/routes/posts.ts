@@ -13,6 +13,7 @@ import {
   GetPostStatsResponse,
 } from "@workspace/api-zod";
 import { publishPostToVk } from "../lib/vk-publisher.js";
+import { publishPostToTelegram } from "../lib/telegram-publisher.js";
 
 const router: IRouter = Router();
 
@@ -126,6 +127,13 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
     req.log.error({ err, postId: post.id }, "Immediate VK publish failed");
     res.status(502).json({ error: "VK publish failed" });
     return;
+  }
+
+  // Publish to Telegram independently — don't abort if it fails
+  try {
+    await publishPostToTelegram(post.id, post.content);
+  } catch (err) {
+    req.log.error({ err, postId: post.id }, "Immediate Telegram publish failed");
   }
 
   const [updated] = await db
