@@ -47,3 +47,11 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.agents/
+
+# Temp files from development sessions
+attached_assets/
+
+# Local environment variables (never commit real secrets)
+.env
+.env.local
