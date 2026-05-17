@@ -1,15 +1,16 @@
-# [Project name]
+# Контент Фабрика
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Инструмент для генерации и автоматической публикации постов в VK и Telegram на базе 5-агентного AI-конвейера. Создан для каналов «Я-Инженер» (@club238494545 в VK, @i_am_an_engineer1 в Telegram).
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port from $PORT, path /api)
+- `pnpm --filter @workspace/content-factory run dev` — run the frontend (port from $PORT, path /)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL`, `PROXYAPI_KEY`, `VK_ACCESS_TOKEN`, `VK_GROUP_ID`, `SESSION_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL_ID`
 
 ## Stack
 
@@ -19,27 +20,48 @@ _Replace the heading above with the project's name, and this line with one sente
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Frontend: React 19, Vite, wouter, shadcn/ui, Tailwind CSS
+- Publishing: VK API v5.131 + Telegram Bot API
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- DB schema: `lib/db/src/schema/posts.ts`
+- OpenAPI spec: `lib/api-spec/openapi.yaml`
+- API routes: `artifacts/api-server/src/routes/`
+- VK publisher (scheduled): `artifacts/api-server/src/lib/vk-publisher.ts`
+- Telegram publisher: `artifacts/api-server/src/lib/telegram-publisher.ts`
+- Frontend pages: `artifacts/content-factory/src/pages/`
+- Navigation + layout: `artifacts/content-factory/src/components/layout.tsx`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Contract-first API: OpenAPI YAML → Orval codegen → React Query hooks + Zod schemas. Never hand-write fetch calls on the frontend.
+- VK and Telegram publish independently: a failure in one channel does not block the other (except VK failure on immediate publish aborts the request).
+- Scheduled publisher polls every 60s via `setInterval`; runs immediately on startup to catch missed posts.
+- Posts table uses `scheduledAt` (nullable) to determine when to publish; `publishedAt` + `vkPostId` are set after successful publish.
+- `VK_GROUP_ID` may be prefixed with "club" — the publisher strips non-numeric chars automatically.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+5-step AI pipeline (Controller → Author → Editor → Critic → Final Editor) generates posts from a topic. Posts can be scheduled to publish at 12:00 MSK on a chosen weekday. Each weekday has a content theme (e.g. Monday = Russian tech, Tuesday = Chinese tech). Upon publishing, posts are sent simultaneously to VK and Telegram. Archive page shows all published posts with VK links and day-theme badges.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Language: Russian UI, Russian-language posts
+- Logging: use `req.log` in routes, `logger` singleton elsewhere — never `console.log` in server code
+- Channel: VK group club238494545 (numeric owner_id = -238494545), Telegram @i_am_an_engineer1
+- Telegram bot: @my_telegram532_bot ("Толик-админ"), already admin in the channel
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Do NOT run `pnpm dev` at workspace root — use `restart_workflow` or individual `--filter` commands.
+- Verify artifacts with `pnpm --filter @workspace/<slug> run typecheck`, not `build` (build needs PORT/BASE_PATH from workflow env).
+- `lucide-react`: use `Calendar` not `CalendarCheck`; `Archive` is available.
+- `TELEGRAM_CHANNEL_ID` numeric value: -1002020696562 (but `@i_am_an_engineer1` username works fine in Bot API calls).
+- After OpenAPI changes: run `pnpm --filter @workspace/api-spec run codegen` before editing frontend code.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- User guide: `GUIDE.md`
+- Project README: `README.md`
