@@ -85,7 +85,7 @@
 
 ---
 
-## Запуск
+## Запуск в разработке (Replit)
 
 ```bash
 # Установить зависимости
@@ -100,6 +100,60 @@ pnpm --filter @workspace/api-server run dev
 # Запустить фронтенд (порт из $PORT, путь /)
 pnpm --filter @workspace/content-factory run dev
 ```
+
+---
+
+## Деплой на VPS через Docker
+
+### Требования
+- Docker + Docker Compose v2
+- VPS: 1 vCPU, 1 ГБ RAM, 20 ГБ SSD (Ubuntu 22.04 LTS)
+
+### Шаги
+
+**1. Склонировать репозиторий на сервер:**
+```bash
+git clone https://github.com/andrew11morozovtwo/content-factory.git
+cd content-factory
+```
+
+**2. Создать файл с переменными окружения:**
+```bash
+cp .env.example .env
+nano .env   # заполнить реальными значениями
+```
+
+**3. Собрать и запустить:**
+```bash
+docker compose up -d --build
+```
+
+При первом запуске автоматически:
+- Создастся база данных PostgreSQL
+- Применится схема (drizzle push)
+- Запустится API-сервер и фронтенд
+
+**4. Проверить:**
+```bash
+docker compose ps        # все сервисы должны быть Up
+docker compose logs api  # логи API
+```
+
+Приложение доступно по адресу `http://IP_СЕРВЕРА`
+
+### Обновление
+```bash
+git pull
+docker compose up -d --build
+```
+
+### Структура Docker-контейнеров
+
+| Контейнер | Роль |
+|-----------|------|
+| `db` | PostgreSQL 16 (данные сохраняются в volume) |
+| `api` | Node.js API-сервер (порт 3000 внутри сети) |
+| `web` | nginx: фронтенд + проксирует `/api` → api |
 
 ---
 

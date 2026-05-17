@@ -1,0 +1,17 @@
+FROM node:24-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm run typecheck:libs
+
+# Build frontend — BASE_PATH=/ for production root serving
+RUN PORT=80 BASE_PATH=/ pnpm --filter @workspace/content-factory run build
+
+FROM nginx:alpine
+COPY --from=builder /app/artifacts/content-factory/dist /usr/share/nginx/html
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

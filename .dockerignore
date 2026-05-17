@@ -1,0 +1,27 @@
+# Dependencies (reinstalled inside Docker)
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+
+# Build outputs (rebuilt inside Docker)
+**/dist
+**/.tsbuildinfo
+
+# Replit internals
+.cache
+.local
+.agents
+.replit
+.replitignore
+
+# Temp / dev files
+attached_assets
+prompts_ya_inzhener.txt
+*.log
+
+# Secrets (never in Docker context)
+.env
+.env.local

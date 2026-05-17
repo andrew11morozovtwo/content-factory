@@ -1,0 +1,35 @@
+FROM node:24-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm run typecheck:libs
+RUN pnpm --filter @workspace/api-server run build
+
+FROM node:24-alpine AS runner
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV NODE_ENV=production
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy full workspace for drizzle migrations
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/.npmrc ./
+COPY --from=builder /app/lib/db ./lib/db
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy built API server
+COPY --from=builder /app/artifacts/api-server/dist ./dist
+
+COPY deploy/start-api.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 3000
+CMD ["/start.sh"]
