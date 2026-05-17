@@ -55,3 +55,6 @@ attached_assets/
 # Local environment variables (never commit real secrets)
 .env
 .env.local
+
+# AI prompts (keep private — use prompts_ya_inzhener.example.txt as a template)
+prompts_ya_inzhener.txt
