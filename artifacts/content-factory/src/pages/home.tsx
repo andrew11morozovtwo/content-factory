@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCreateOpenaiConversation, useCreatePost } from "@workspace/api-client-react";
+import { useCreateOpenaiConversation, useCreatePost, useListPosts } from "@workspace/api-client-react";
+import { isSameDay } from "date-fns";
 import { Bot, Send, Save, ArrowRight, Loader2, Calendar } from "lucide-react";
 
 const DAYS = [
@@ -32,6 +33,7 @@ export default function Home() {
   const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
   const [userPickedDay, setUserPickedDay] = useState(false);
   const [, setLocation] = useLocation();
+  const { data: posts } = useListPosts();
 
   const createConversation = useCreateOpenaiConversation();
   const createPost = useCreatePost();
@@ -172,15 +174,28 @@ export default function Home() {
     }
   };
 
-  const getNextDateForDay = (dayIndex: number): Date => {
+  const getNextFreeDateForDay = (dayIndex: number): Date => {
+    const occupiedDates = (posts ?? [])
+      .filter((p) => p.status === "scheduled" && p.scheduledAt)
+      .map((p) => new Date(p.scheduledAt!));
+
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const todayDay = today.getDay();
     let daysUntil = dayIndex - todayDay;
     if (daysUntil < 0) daysUntil += 7;
-    const result = new Date(today);
-    result.setDate(today.getDate() + daysUntil);
-    return result;
+
+    const candidate = new Date(today);
+    candidate.setDate(today.getDate() + daysUntil);
+
+    // Перебираем недели вперёд, пока не найдём свободный день
+    for (let week = 0; week < 52; week++) {
+      const isOccupied = occupiedDates.some((d) => isSameDay(d, candidate));
+      if (!isOccupied) return new Date(candidate);
+      candidate.setDate(candidate.getDate() + 7);
+    }
+
+    return candidate;
   };
 
   const handleAccept = async () => {
@@ -204,7 +219,7 @@ export default function Home() {
   const handleScheduleNow = async () => {
     if (!aiResponse) return;
     try {
-      const scheduledAt = getNextDateForDay(selectedDay);
+      const scheduledAt = getNextFreeDateForDay(selectedDay);
       await createPost.mutateAsync({
         data: {
           title: idea.slice(0, 50) || "Новый пост",
