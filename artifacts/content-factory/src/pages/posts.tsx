@@ -74,11 +74,16 @@ export default function Posts() {
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
 
-  const filteredPosts = posts?.filter(
-    (post) =>
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.content.toLowerCase().includes(search.toLowerCase()),
-  ) || [];
+  const filteredPosts = (posts ?? [])
+    .filter(
+      (post) =>
+        post.status !== "published" &&
+        (post.title.toLowerCase().includes(search.toLowerCase()) ||
+          post.content.toLowerCase().includes(search.toLowerCase())),
+    )
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
   // Даты с уже запланированными постами (для календаря)
   const scheduledDates: Date[] = (posts ?? [])
