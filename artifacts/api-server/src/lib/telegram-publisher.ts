@@ -16,7 +16,6 @@ export async function publishPostToTelegram(postId: number, content: string): Pr
     body: JSON.stringify({
       chat_id: channelId,
       text: content,
-      parse_mode: "Markdown",
     }),
   });
 
