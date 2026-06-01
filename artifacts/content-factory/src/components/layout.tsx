@@ -2,8 +2,14 @@ import { Link, useLocation } from "wouter";
 import { PenSquare, CalendarDays, Library, Zap, Archive, Bot, Loader2, CheckCircle2, AlertTriangle, CalendarIcon } from "lucide-react";
 import { ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getListPostsQueryKey } from "@workspace/api-client-react";
+import {
+  getListPostsQueryKey,
+  getGetAutopilotQueryKey,
+  useGetAutopilot,
+  useSetAutopilot,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -34,6 +40,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const [autoState, setAutoState] = useState<AutoState>({ stage: "idle" });
   const isGenerating = useRef(false);
   const queryClient = useQueryClient();
+
+  const { data: autopilot } = useGetAutopilot();
+  const { mutate: setAutopilot, isPending: autopilotPending } = useSetAutopilot({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetAutopilotQueryKey() });
+      },
+    },
+  });
 
   const currentLabel =
     ENGINEER_LINKS.find((l) => l.href === location)?.label ?? "Контент Фабрика";
@@ -87,7 +102,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <div className="flex items-center justify-between mb-2 px-2 pt-2">
+          <div className="flex items-center justify-between mb-1 px-2 pt-2">
             <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
               VK Я-Инженер
             </span>
@@ -100,6 +115,31 @@ export function Layout({ children }: { children: ReactNode }) {
               <Bot className="w-3 h-3" />
               Автомат
             </Button>
+          </div>
+
+          {/* Автопилот */}
+          <div className="flex items-center justify-between px-2 py-1.5 mb-1 rounded-md bg-sidebar-accent/30">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] font-semibold text-sidebar-foreground/70 leading-tight">
+                Автопилот
+              </span>
+              {autopilot?.nextRunAt && (
+                <span className="text-[10px] text-sidebar-foreground/40 leading-tight truncate">
+                  след. {format(new Date(autopilot.nextRunAt), "HH:mm d MMM", { locale: ru })}
+                </span>
+              )}
+              {autopilot?.lastRunAt && (
+                <span className="text-[10px] text-sidebar-foreground/30 leading-tight truncate">
+                  был {format(new Date(autopilot.lastRunAt), "d MMM HH:mm", { locale: ru })}
+                </span>
+              )}
+            </div>
+            <Switch
+              checked={autopilot?.enabled ?? false}
+              disabled={autopilotPending}
+              onCheckedChange={(checked) => setAutopilot({ data: { enabled: checked } })}
+              className="shrink-0"
+            />
           </div>
           {ENGINEER_LINKS.map((link) => {
             const Icon = link.icon;

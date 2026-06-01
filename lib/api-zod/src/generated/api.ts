@@ -165,6 +165,28 @@ export const GetPostStatsResponse = zod.object({
 });
 
 /**
+ * @summary Get autopilot status
+ */
+export const GetAutopilotResponse = zod.object({
+  enabled: zod.boolean(),
+  lastRunAt: zod.coerce.date().nullable(),
+  nextRunAt: zod.coerce.date().nullable(),
+});
+
+/**
+ * @summary Enable or disable autopilot
+ */
+export const SetAutopilotBody = zod.object({
+  enabled: zod.boolean(),
+});
+
+export const SetAutopilotResponse = zod.object({
+  enabled: zod.boolean(),
+  lastRunAt: zod.coerce.date().nullable(),
+  nextRunAt: zod.coerce.date().nullable(),
+});
+
+/**
  * @summary List all conversations
  */
 export const ListOpenaiConversationsResponseItem = zod.object({

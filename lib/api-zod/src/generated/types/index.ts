@@ -7,6 +7,8 @@
  */
 
 export * from "./apiError";
+export * from "./autopilotInput";
+export * from "./autopilotStatus";
 export * from "./healthStatus";
 export * from "./openaiConversation";
 export * from "./openaiConversationInput";

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startVkPublisher } from "./lib/vk-publisher";
+import { startAutopilotScheduler } from "./lib/autopilot-scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startVkPublisher();
+  startAutopilotScheduler();
 });

@@ -148,6 +148,18 @@ export interface OpenaiConversationWithMessages {
   messages: OpenaiMessage[];
 }
 
+export interface AutopilotStatus {
+  enabled: boolean;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  nextRunAt: string | null;
+}
+
+export interface AutopilotInput {
+  enabled: boolean;
+}
+
 export interface OpenaiError {
   error: string;
 }
