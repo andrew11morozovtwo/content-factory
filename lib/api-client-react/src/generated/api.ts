@@ -591,6 +591,85 @@ export function useGetPostStats<
 }
 
 /**
+ * @summary Parse source channel and auto-generate a scheduled post
+ */
+export const getAutoGenerateUrl = () => {
+  return `/api/auto-generate`;
+};
+
+export const autoGenerate = async (options?: RequestInit): Promise<Post> => {
+  return customFetch<Post>(getAutoGenerateUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAutoGenerateMutationOptions = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof autoGenerate>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof autoGenerate>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["autoGenerate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof autoGenerate>>,
+    void
+  > = () => {
+    return autoGenerate(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AutoGenerateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof autoGenerate>>
+>;
+
+export type AutoGenerateMutationError = ErrorType<OpenaiError>;
+
+/**
+ * @summary Parse source channel and auto-generate a scheduled post
+ */
+export const useAutoGenerate = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof autoGenerate>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof autoGenerate>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAutoGenerateMutationOptions(options));
+};
+
+/**
  * @summary List all conversations
  */
 export const getListOpenaiConversationsUrl = () => {
