@@ -7,10 +7,10 @@ import {
   markHashesUsed,
 } from "./auto-generator.js";
 
-// 13:30 MSK = 10:30 UTC
+// 12:00 MSK = 09:00 UTC
 const MSK_OFFSET_HOURS = 3;
-const AUTOPILOT_HOUR_MSK = 13;
-const AUTOPILOT_MINUTE_MSK = 30;
+const AUTOPILOT_HOUR_MSK = 12;
+const AUTOPILOT_MINUTE_MSK = 0;
 
 let nextRunTimer: ReturnType<typeof setTimeout> | null = null;
 let nextRunAt: Date | null = null;
@@ -161,7 +161,7 @@ export async function runAutopilotCheck(): Promise<void> {
 function msUntilNextRun(): number {
   const now = new Date();
   const target = new Date(now);
-  // 13:30 MSK = 10:30 UTC
+  // 12:00 MSK = 09:00 UTC
   target.setUTCHours(AUTOPILOT_HOUR_MSK - MSK_OFFSET_HOURS, AUTOPILOT_MINUTE_MSK, 0, 0);
   if (target.getTime() <= now.getTime()) {
     target.setUTCDate(target.getUTCDate() + 1);
