@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { PenSquare, CalendarDays, Library, Zap, Archive } from "lucide-react";
+import { PenSquare, CalendarDays, Library, Zap, Archive, Bot } from "lucide-react";
 import { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 const ENGINEER_LINKS = [
   { href: "/", label: "Рабочий стол", icon: PenSquare },
@@ -34,8 +35,18 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <div className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mb-2 px-2 pt-2">
-            VK Я-Инженер
+          <div className="flex items-center justify-between mb-2 px-2 pt-2">
+            <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+              VK Я-Инженер
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-2 text-[11px] font-semibold gap-1 border-sidebar-foreground/20 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            >
+              <Bot className="w-3 h-3" />
+              Автомат
+            </Button>
           </div>
           {ENGINEER_LINKS.map((link) => {
             const Icon = link.icon;
