@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { PenSquare, CalendarDays, Library, Zap, Archive, Bot, Loader2, CheckCircle2, AlertTriangle, CalendarIcon } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
@@ -32,12 +32,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoState, setAutoState] = useState<AutoState>({ stage: "idle" });
+  const isGenerating = useRef(false);
   const queryClient = useQueryClient();
 
   const currentLabel =
     ENGINEER_LINKS.find((l) => l.href === location)?.label ?? "Контент Фабрика";
 
   const handleAutoGenerate = async () => {
+    if (isGenerating.current) return;
+    isGenerating.current = true;
     setAutoState({ stage: "loading" });
     try {
       const resp = await fetch("/api/auto-generate", { method: "POST" });
@@ -57,6 +60,8 @@ export function Layout({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       setAutoState({ stage: "error", message: String(err) });
+    } finally {
+      isGenerating.current = false;
     }
   };
 
@@ -261,7 +266,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   <Button variant="outline" onClick={closeDialog} className="flex-1">
                     Закрыть
                   </Button>
-                  <Button onClick={() => { closeDialog(); void handleAutoGenerate(); }} variant="secondary" className="flex-1 gap-1">
+                  <Button onClick={() => setAutoState({ stage: "idle" })} variant="secondary" className="flex-1 gap-1">
                     <Bot className="w-3 h-3" />
                     Ещё один
                   </Button>
