@@ -62,7 +62,7 @@
 - Do NOT run `pnpm dev` at workspace root — use `restart_workflow` or individual `--filter` commands.
 - Verify artifacts with `pnpm --filter @workspace/<slug> run typecheck`, not `build` (build needs PORT/BASE_PATH from workflow env).
 - `lucide-react`: use `Calendar` not `CalendarCheck`; `Archive` is available.
-- `TELEGRAM_CHANNEL_ID` numeric value: -1002020696562 (but `@i_am_an_engineer1` username works fine in Bot API calls).
+- `TELEGRAM_CHANNEL_ID`: the `@username` format works fine in Bot API calls; prefer it over the numeric ID.
 - After OpenAPI changes: run `pnpm --filter @workspace/api-spec run codegen` before editing frontend code.
 
 ## Pointers
