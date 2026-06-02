@@ -26,12 +26,17 @@
 ## Where things live
 
 - DB schema: `lib/db/src/schema/posts.ts`
+- DB schema (used sources): `lib/db/src/schema/used-sources.ts`
+- DB schema (app settings): `lib/db/src/schema/app-settings.ts`
 - OpenAPI spec: `lib/api-spec/openapi.yaml`
 - API routes: `artifacts/api-server/src/routes/`
+- Autopilot route: `artifacts/api-server/src/routes/autopilot.ts`
 - VK publisher (scheduled): `artifacts/api-server/src/lib/vk-publisher.ts`
 - Telegram publisher: `artifacts/api-server/src/lib/telegram-publisher.ts`
+- Auto-generator (Автомат + dedup): `artifacts/api-server/src/lib/auto-generator.ts`
+- Autopilot scheduler (12:00 MSK): `artifacts/api-server/src/lib/autopilot-scheduler.ts`
 - Frontend pages: `artifacts/content-factory/src/pages/`
-- Navigation + layout: `artifacts/content-factory/src/components/layout.tsx`
+- Navigation + layout (Автомат dialog + Autopilot toggle): `artifacts/content-factory/src/components/layout.tsx`
 
 ## Architecture decisions
 
