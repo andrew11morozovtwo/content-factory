@@ -39,7 +39,7 @@ router.post("/auto-generate", async (req, res): Promise<void> => {
         status: "scheduled",
         recommendedDay: generated.recommendedDay,
         channel: "ya-inzhener",
-        scheduledAt: new Date(), // немедленная публикация для отладки промптов
+        scheduledAt: new Date(generated.scheduledAt),
       })
       .returning();
 
