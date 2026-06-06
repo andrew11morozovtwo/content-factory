@@ -264,15 +264,15 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* ── VK Безопасность всегда ── */}
           <div>
-            <div className="flex items-center justify-between px-2 mb-1.5">
+            <div className="px-2 mb-1.5 space-y-1">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3 h-3 text-sidebar-foreground/40" />
                 <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
                   Безопасность
                 </span>
               </div>
-              {/* Две кнопки: Автомат + План */}
-              <div className="flex items-center gap-0.5">
+              {/* Кнопки на второй строке */}
+              <div className="flex items-center gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
