@@ -41,7 +41,11 @@ interface ConflictInfo {
   conflictingTitle: string;
 }
 
-export default function CalendarPage() {
+interface Props {
+  channel: "ya-inzhener" | "bezopasnost";
+}
+
+export default function CalendarPage({ channel }: Props) {
   const { data: posts, isLoading } = useListPosts();
   const { data: stats } = useGetPostStats();
   const updatePost = useUpdatePost();
@@ -54,7 +58,7 @@ export default function CalendarPage() {
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
 
   const scheduledPosts = (posts ?? []).filter(
-    (p) => p.status === "scheduled" && p.scheduledAt,
+    (p) => p.status === "scheduled" && p.scheduledAt && (p.channel ?? "ya-inzhener") === channel,
   );
   const scheduledDates = scheduledPosts.map((p) => new Date(p.scheduledAt!));
 

@@ -17,15 +17,28 @@ const DAY_LABELS: Record<number, { short: string; theme: string }> = {
   6: { short: "Сб", theme: "дайджест" },
 };
 
-const VK_GROUP_NUMERIC = "238494545";
-const TG_CHANNEL = "i_am_an_engineer1";
+const VK_GROUP_BY_CHANNEL: Record<string, string> = {
+  "ya-inzhener": "238494545",
+  "bezopasnost": "239381394",
+};
+const TG_BY_CHANNEL: Record<string, string | null> = {
+  "ya-inzhener": "i_am_an_engineer1",
+  "bezopasnost": null,
+};
 
-export default function ArchivePage() {
+interface Props {
+  channel: "ya-inzhener" | "bezopasnost";
+}
+
+export default function ArchivePage({ channel }: Props) {
   const { data: posts, isLoading } = useListPosts();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
+  const vkGroupNumeric = VK_GROUP_BY_CHANNEL[channel] ?? "238494545";
+  const tgChannel = TG_BY_CHANNEL[channel] ?? null;
+
   const published = (posts ?? [])
-    .filter((p) => p.status === "published")
+    .filter((p) => p.status === "published" && (p.channel ?? "ya-inzhener") === channel)
     .sort((a, b) => {
       const aTime = a.publishedAt ?? a.updatedAt;
       const bTime = b.publishedAt ?? b.updatedAt;
@@ -72,10 +85,10 @@ export default function ArchivePage() {
             const publishedAt = post.publishedAt ?? post.updatedAt;
             const charCount = post.content.length;
             const vkUrl = post.vkPostId
-              ? `https://vk.com/wall-${VK_GROUP_NUMERIC}_${post.vkPostId}`
+              ? `https://vk.com/wall-${vkGroupNumeric}_${post.vkPostId}`
               : null;
-            const tgUrl = post.telegramMessageId
-              ? `https://t.me/${TG_CHANNEL}/${post.telegramMessageId}`
+            const tgUrl = post.telegramMessageId && tgChannel
+              ? `https://t.me/${tgChannel}/${post.telegramMessageId}`
               : null;
             const dayInfo = post.recommendedDay != null ? DAY_LABELS[post.recommendedDay] : null;
 

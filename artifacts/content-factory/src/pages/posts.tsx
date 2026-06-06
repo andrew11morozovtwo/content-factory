@@ -77,7 +77,11 @@ interface ConflictInfo {
   conflictingTitle: string;
 }
 
-export default function Posts() {
+interface Props {
+  channel: "ya-inzhener" | "bezopasnost";
+}
+
+export default function Posts({ channel }: Props) {
   const { data: posts, isLoading } = useListPosts();
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
@@ -90,10 +94,13 @@ export default function Posts() {
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
 
+  const newPostHref = channel === "bezopasnost" ? "/bez" : "/";
+
   const filteredPosts = (posts ?? [])
     .filter(
       (post) =>
         post.status !== "published" &&
+        (post.channel ?? "ya-inzhener") === channel &&
         (post.title.toLowerCase().includes(search.toLowerCase()) ||
           post.content.toLowerCase().includes(search.toLowerCase())),
     )
@@ -103,7 +110,7 @@ export default function Posts() {
 
   // Даты с уже запланированными постами (для календаря)
   const scheduledDates: Date[] = (posts ?? [])
-    .filter((p) => p.status === "scheduled" && p.scheduledAt)
+    .filter((p) => p.status === "scheduled" && p.scheduledAt && (p.channel ?? "ya-inzhener") === channel)
     .map((p) => new Date(p.scheduledAt!));
 
   const findConflict = (date: Date, excludeId: number) =>
@@ -224,7 +231,7 @@ export default function Posts() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Link href="/">
+        <Link href={newPostHref}>
           <Button>
             <Plus className="w-4 h-4 mr-2" />
             Новый пост

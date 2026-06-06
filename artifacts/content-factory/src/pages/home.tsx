@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost, useListPosts } from "@workspace/api-client-react";
 import { isSameDay } from "date-fns";
-import { Bot, Send, Save, ArrowRight, Loader2, Calendar, ShieldCheck, Cpu } from "lucide-react";
+import { Bot, Send, Save, ArrowRight, Loader2, Calendar } from "lucide-react";
 
 const DAYS = [
   { label: "Пн", index: 1 },
@@ -17,16 +17,13 @@ const DAYS = [
   { label: "Вс", index: 0 },
 ];
 
-const DAYS_RU_FULL = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
-
 type Channel = "ya-inzhener" | "bezopasnost";
 
-const CHANNELS: { value: Channel; label: string; icon: typeof Cpu }[] = [
-  { value: "ya-inzhener", label: "Я-Инженер", icon: Cpu },
-  { value: "bezopasnost", label: "Безопасность всегда", icon: ShieldCheck },
-];
+interface Props {
+  channel: Channel;
+}
 
-export default function Home() {
+export default function Home({ channel }: Props) {
   const [idea, setIdea] = useState("");
   const [feedback, setFeedback] = useState("");
   const [aiResponse, setAiResponse] = useState("");
@@ -38,12 +35,15 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
   const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
   const [userPickedDay, setUserPickedDay] = useState(false);
-  const [selectedChannel, setSelectedChannel] = useState<Channel>("ya-inzhener");
   const [, setLocation] = useLocation();
   const { data: posts } = useListPosts();
 
   const createConversation = useCreateOpenaiConversation();
   const createPost = useCreatePost();
+
+  const isBez = channel === "bezopasnost";
+  const calendarPath = isBez ? "/bez/calendar" : "/calendar";
+  const postsPath = isBez ? "/bez/posts" : "/posts";
 
   const readSSEStream = async (
     response: Response,
@@ -104,7 +104,7 @@ export default function Home() {
 
       const response = await fetch(`/api/openai/conversations/${currentConvId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Channel": selectedChannel },
+        headers: { "Content-Type": "application/json", "X-Channel": channel },
         body: JSON.stringify({ content: idea }),
       });
 
@@ -148,14 +148,14 @@ export default function Home() {
     setErrorMessage(null);
 
     try {
-      const dayNote = `пост для ${DAYS_RU_FULL[selectedDay]}`;
+      const dayNote = DAYS.find((d) => d.index === selectedDay)?.label ?? "";
       const content = `Улучши пост (${dayNote}) с учётом замечаний: ${feedback}`;
 
       setAiResponse("");
 
       const response = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Channel": selectedChannel },
+        headers: { "Content-Type": "application/json", "X-Channel": channel },
         body: JSON.stringify({ content }),
       });
 
@@ -174,23 +174,23 @@ export default function Home() {
       setFeedback("");
     } catch (error) {
       console.error(error);
-      setErrorMessage("Не удалось подключиться к серверу. Попробуйте ещё раз.");
+      setErrorMessage("Не удалось подключиться к серверу.");
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
     }
   };
 
-  const getNextFreeDateForDay = (dayIndex: number): Date => {
-    const occupiedDates = (posts ?? [])
-      .filter((p) => p.status === "scheduled" && p.scheduledAt)
-      .map((p) => new Date(p.scheduledAt!));
+  const occupiedDates: Date[] = (posts ?? [])
+    .filter((p) => p.status === "scheduled" && p.scheduledAt && p.channel === channel)
+    .map((p) => new Date(p.scheduledAt!));
 
+  const getNextFreeDateForDay = (dayIndex: number): Date => {
     const today = new Date();
     today.setHours(12, 0, 0, 0);
-    const todayDay = today.getDay();
-    let daysUntil = dayIndex - todayDay;
-    if (daysUntil < 0) daysUntil += 7;
+    const currentDay = today.getDay();
+    let daysUntil = (dayIndex - currentDay + 7) % 7;
+    if (daysUntil === 0) daysUntil = 0;
 
     const candidate = new Date(today);
     candidate.setDate(today.getDate() + daysUntil);
@@ -214,10 +214,10 @@ export default function Home() {
           status: "draft",
           conversationId,
           recommendedDay: selectedDay,
-          channel: selectedChannel,
+          channel,
         },
       });
-      setLocation("/posts");
+      setLocation(postsPath);
     } catch (err) {
       console.error(err);
     }
@@ -235,14 +235,18 @@ export default function Home() {
           conversationId,
           recommendedDay: selectedDay,
           scheduledAt: scheduledAt.toISOString(),
-          channel: selectedChannel,
+          channel,
         },
       });
-      setLocation("/calendar");
+      setLocation(calendarPath);
     } catch (err) {
       console.error(err);
     }
   };
+
+  const placeholder = isBez
+    ? "О чем напишем сегодня? Например: Безопасность на воде летом — что нужно знать..."
+    : "О чем напишем сегодня? Например: Расскажи про новый мост в Китае, сделай упор на вантовые конструкции...";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[600px] lg:h-full">
@@ -260,7 +264,7 @@ export default function Home() {
             <Textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder="О чем напишем сегодня? Например: Расскажи про новый мост в Китае, сделай упор на вантовые конструкции..."
+              placeholder={placeholder}
               className="resize-none border-0 focus-visible:ring-0 rounded-none p-6 text-base min-h-[200px]"
               data-testid="input-idea"
             />
@@ -279,35 +283,6 @@ export default function Home() {
                 )}
                 Сгенерировать
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Channel selector */}
-        <Card className="border-border/50 shadow-sm">
-          <CardHeader className="bg-muted/30 pb-3 border-b">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Канал публикации
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 gap-2">
-              {CHANNELS.map((ch) => {
-                const Icon = ch.icon;
-                const isActive = selectedChannel === ch.value;
-                return (
-                  <Button
-                    key={ch.value}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedChannel(ch.value)}
-                    className="justify-start gap-2 h-9"
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate text-xs">{ch.label}</span>
-                  </Button>
-                );
-              })}
             </div>
           </CardContent>
         </Card>
@@ -376,7 +351,7 @@ export default function Home() {
             <Textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
-              placeholder="Что исправить? (Например: сделай тон более техническим)"
+              placeholder="Что исправить? (Например: сделай тон более дружелюбным)"
               className="resize-none h-20"
               disabled={!aiResponse || isGenerating}
               data-testid="input-feedback"

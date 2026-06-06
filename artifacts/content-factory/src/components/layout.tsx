@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { PenSquare, CalendarDays, Library, Zap, Archive, Bot, Loader2, CheckCircle2, AlertTriangle, CalendarIcon } from "lucide-react";
+import { PenSquare, CalendarDays, Library, Zap, Archive, Bot, Loader2, CheckCircle2, AlertTriangle, CalendarIcon, ShieldCheck, Cpu } from "lucide-react";
 import { ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,18 +14,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
-const ENGINEER_LINKS = [
+const YI_LINKS = [
   { href: "/", label: "Рабочий стол", icon: PenSquare },
   { href: "/calendar", label: "Календарь", icon: CalendarDays },
   { href: "/posts", label: "Библиотека", icon: Library },
   { href: "/archive", label: "Архив", icon: Archive },
 ];
 
-const SECURITY_LINKS = [
-  { label: "Рабочий стол", icon: PenSquare },
-  { label: "Календарь", icon: CalendarDays },
-  { label: "Библиотека", icon: Library },
-  { label: "Архив", icon: Archive },
+const BEZ_LINKS = [
+  { href: "/bez", label: "Рабочий стол", icon: PenSquare },
+  { href: "/bez/calendar", label: "Календарь", icon: CalendarDays },
+  { href: "/bez/posts", label: "Библиотека", icon: Library },
+  { href: "/bez/archive", label: "Архив", icon: Archive },
 ];
 
 type AutoState =
@@ -33,6 +33,22 @@ type AutoState =
   | { stage: "loading" }
   | { stage: "done"; post: { title: string; scheduledAt: string | null; content: string } }
   | { stage: "error"; message: string };
+
+function NavLink({ href, label, icon: Icon, isActive }: { href: string; label: string; icon: typeof PenSquare; isActive: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+        isActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+      }`}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="text-sm">{label}</span>
+    </Link>
+  );
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -50,8 +66,9 @@ export function Layout({ children }: { children: ReactNode }) {
     },
   });
 
-  const currentLabel =
-    ENGINEER_LINKS.find((l) => l.href === location)?.label ?? "Контент Фабрика";
+  const isBez = location.startsWith("/bez");
+  const allLinks = isBez ? BEZ_LINKS : YI_LINKS;
+  const currentLabel = allLinks.find((l) => l.href === location)?.label ?? "Контент Фабрика";
 
   const handleAutoGenerate = async () => {
     if (isGenerating.current) return;
@@ -93,145 +110,165 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-[100dvh] bg-background">
       {/* ── Боковая панель (только десктоп) ── */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 bg-sidebar border-r border-sidebar-border text-sidebar-foreground flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border gap-2">
+      <aside className="hidden md:flex w-56 flex-shrink-0 bg-sidebar border-r border-sidebar-border text-sidebar-foreground flex-col">
+        {/* Логотип */}
+        <div className="h-14 flex items-center px-4 border-b border-sidebar-border gap-2">
           <div className="bg-primary p-1.5 rounded-md text-primary-foreground">
-            <Zap className="w-5 h-5" />
+            <Zap className="w-4 h-4" />
           </div>
-          <span className="font-bold text-lg tracking-tight">Контент Фабрика</span>
+          <span className="font-bold text-sm tracking-tight">Контент Фабрика</span>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <div className="flex items-center justify-between mb-1 px-2 pt-2">
-            <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-              VK Я-Инженер
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={openDialog}
-              className="h-6 px-2 text-[11px] font-semibold gap-1 border-sidebar-foreground/20 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-            >
-              <Bot className="w-3 h-3" />
-              Автомат
-            </Button>
-          </div>
+        <nav className="flex-1 p-3 overflow-y-auto space-y-4">
 
-          {/* Автопилот */}
-          <div className="flex items-center justify-between px-2 py-1.5 mb-1 rounded-md bg-sidebar-accent/30">
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-semibold text-sidebar-foreground/70 leading-tight">
-                Автопилот
-              </span>
-              {autopilot?.nextRunAt && (
-                <span className="text-[10px] text-sidebar-foreground/40 leading-tight truncate">
-                  след. {format(new Date(autopilot.nextRunAt), "HH:mm d MMM", { locale: ru })}
-                </span>
-              )}
-              {autopilot?.lastRunAt && (
-                <span className="text-[10px] text-sidebar-foreground/30 leading-tight truncate">
-                  был {format(new Date(autopilot.lastRunAt), "d MMM HH:mm", { locale: ru })}
-                </span>
-              )}
-            </div>
-            <Switch
-              checked={autopilot?.enabled ?? false}
-              disabled={autopilotPending}
-              onCheckedChange={(checked) => setAutopilot({ data: { enabled: checked } })}
-              className="shrink-0"
-            />
-          </div>
-          {ENGINEER_LINKS.map((link) => {
-            const Icon = link.icon;
-            const isActive = location === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{link.label}</span>
-              </Link>
-            );
-          })}
-
-          <div className="pt-4" />
-
-          <div className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mb-2 px-2">
-            VK Безопасность всегда
-          </div>
-          {SECURITY_LINKS.map((link) => {
-            const Icon = link.icon;
-            return (
-              <div
-                key={link.label}
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground/30 cursor-not-allowed select-none"
-                title="Скоро"
-              >
-                <Icon className="w-5 h-5" />
-                <span>{link.label}</span>
-                <span className="ml-auto text-[10px] bg-sidebar-foreground/10 text-sidebar-foreground/40 px-1.5 py-0.5 rounded-full leading-none">
-                  скоро
+          {/* ── VK Я-Инженер ── */}
+          <div>
+            <div className="flex items-center justify-between px-2 mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <Cpu className="w-3 h-3 text-sidebar-foreground/40" />
+                <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                  Я-Инженер
                 </span>
               </div>
-            );
-          })}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={openDialog}
+                className="h-5 px-1.5 text-[10px] font-semibold gap-1 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+              >
+                <Bot className="w-3 h-3" />
+                Автомат
+              </Button>
+            </div>
+
+            {/* Автопилот Я-Инженер */}
+            <div className="flex items-center justify-between px-2 py-1.5 mb-1 rounded-md bg-sidebar-accent/20 border border-sidebar-border/50">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-semibold text-sidebar-foreground/60 leading-tight">
+                  Автопилот
+                </span>
+                {autopilot?.nextRunAt && (
+                  <span className="text-[9px] text-sidebar-foreground/40 leading-tight truncate">
+                    след. {format(new Date(autopilot.nextRunAt), "HH:mm d MMM", { locale: ru })}
+                  </span>
+                )}
+                {autopilot?.lastRunAt && (
+                  <span className="text-[9px] text-sidebar-foreground/30 leading-tight truncate">
+                    был {format(new Date(autopilot.lastRunAt), "d MMM HH:mm", { locale: ru })}
+                  </span>
+                )}
+              </div>
+              <Switch
+                checked={autopilot?.enabled ?? false}
+                disabled={autopilotPending}
+                onCheckedChange={(checked) => setAutopilot({ data: { enabled: checked } })}
+                className="shrink-0 scale-75"
+              />
+            </div>
+
+            <div className="space-y-0.5">
+              {YI_LINKS.map((link) => (
+                <NavLink
+                  key={link.href}
+                  {...link}
+                  isActive={location === link.href}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Разделитель */}
+          <div className="border-t border-sidebar-border/60" />
+
+          {/* ── VK Безопасность всегда ── */}
+          <div>
+            <div className="flex items-center gap-1.5 px-2 mb-1.5">
+              <ShieldCheck className="w-3 h-3 text-sidebar-foreground/40" />
+              <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                Безопасность
+              </span>
+            </div>
+
+            <div className="space-y-0.5">
+              {BEZ_LINKS.map((link) => (
+                <NavLink
+                  key={link.href}
+                  {...link}
+                  isActive={location === link.href}
+                />
+              ))}
+            </div>
+          </div>
         </nav>
       </aside>
 
       {/* ── Основное содержимое ── */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Шапка */}
-        <div className="h-14 md:h-16 flex-shrink-0 border-b bg-card flex items-center px-4 md:px-8 shadow-sm z-10 relative gap-3">
+        <div className="h-14 flex-shrink-0 border-b bg-card flex items-center px-4 md:px-6 shadow-sm z-10 relative gap-3">
           <div className="flex md:hidden items-center gap-2 shrink-0">
             <div className="bg-primary p-1 rounded-md text-primary-foreground">
               <Zap className="w-4 h-4" />
             </div>
           </div>
 
-          <h1 className="font-medium text-base md:text-lg truncate">
-            {location === "/" ? (
-              <a
-                href="https://vk.com/club238494545"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Я-Инженер
-              </a>
+          <div className="flex items-center gap-2 min-w-0">
+            {isBez ? (
+              <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0" />
             ) : (
-              currentLabel
+              <Cpu className="w-4 h-4 text-blue-500 shrink-0" />
             )}
-          </h1>
+            <h1 className="font-medium text-base truncate">
+              {isBez ? (
+                <a
+                  href="https://vk.com/bezopasnost_vsegda"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-600 hover:underline dark:text-amber-400"
+                >
+                  Безопасность всегда
+                </a>
+              ) : location === "/" ? (
+                <a
+                  href="https://vk.com/club238494545"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Я-Инженер
+                </a>
+              ) : (
+                currentLabel
+              )}
+            </h1>
+            {currentLabel !== "Рабочий стол" && (
+              <span className="text-muted-foreground/40 text-sm hidden sm:inline">/ {currentLabel}</span>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-4 md:p-8 pb-24 md:pb-8">
+        <div className="flex-1 overflow-auto p-4 md:p-6 pb-24 md:pb-6">
           {children}
         </div>
       </main>
 
       {/* ── Нижняя навигация (только мобильный) ── */}
       <nav className="fixed bottom-0 inset-x-0 md:hidden bg-card border-t border-border z-50 safe-area-bottom">
-        <div className="flex items-stretch h-16">
-          {ENGINEER_LINKS.map((link) => {
+        <div className="flex items-stretch h-14">
+          {(isBez ? BEZ_LINKS : YI_LINKS).map((link) => {
             const Icon = link.icon;
             const isActive = location === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] font-medium transition-colors ${
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                <Icon className={`w-4 h-4 ${isActive ? "stroke-[2.5]" : ""}`} />
                 <span className="leading-none">
                   {link.label === "Рабочий стол" ? "Создать" : link.label}
                 </span>

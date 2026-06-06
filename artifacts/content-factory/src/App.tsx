@@ -16,10 +16,18 @@ function Router() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/posts" component={Posts} />
-        <Route path="/calendar" component={Calendar} />
-        <Route path="/archive" component={Archive} />
+        {/* VK Я-Инженер */}
+        <Route path="/" component={() => <Home channel="ya-inzhener" />} />
+        <Route path="/posts" component={() => <Posts channel="ya-inzhener" />} />
+        <Route path="/calendar" component={() => <Calendar channel="ya-inzhener" />} />
+        <Route path="/archive" component={() => <Archive channel="ya-inzhener" />} />
+
+        {/* VK Безопасность всегда */}
+        <Route path="/bez" component={() => <Home channel="bezopasnost" />} />
+        <Route path="/bez/posts" component={() => <Posts channel="bezopasnost" />} />
+        <Route path="/bez/calendar" component={() => <Calendar channel="bezopasnost" />} />
+        <Route path="/bez/archive" component={() => <Archive channel="bezopasnost" />} />
+
         <Route component={NotFound} />
       </Switch>
     </Layout>
