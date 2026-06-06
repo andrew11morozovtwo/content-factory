@@ -217,6 +217,28 @@ export const SetAutopilotResponse = zod.object({
 });
 
 /**
+ * @summary Get current publication plan for Bezopasnost channel
+ */
+export const GetBezPlanResponse = zod.object({
+  generatedAt: zod.coerce.date().nullable(),
+  startDate: zod.string().nullable(),
+  endDate: zod.string().nullable(),
+  weeks: zod.array(
+    zod.object({
+      weekStart: zod.string(),
+      weekEnd: zod.string(),
+      theme: zod.string(),
+      days: zod.array(
+        zod.object({
+          date: zod.string().describe("ISO date YYYY-MM-DD"),
+          topic: zod.string(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
  * @summary Get autopilot status (Безопасность всегда)
  */
 export const GetBezAutopilotResponse = zod.object({

@@ -20,6 +20,7 @@ import type {
   ApiError,
   AutopilotInput,
   AutopilotStatus,
+  BezPlan,
   HealthStatus,
   OpenaiConversation,
   OpenaiConversationInput,
@@ -909,6 +910,160 @@ export const useSetAutopilot = <
   TContext
 > => {
   return useMutation(getSetAutopilotMutationOptions(options));
+};
+
+/**
+ * @summary Get current publication plan for Bezopasnost channel
+ */
+export const getGetBezPlanUrl = () => {
+  return `/api/bez-plan`;
+};
+
+export const getBezPlan = async (options?: RequestInit): Promise<BezPlan> => {
+  return customFetch<BezPlan>(getGetBezPlanUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBezPlanQueryKey = () => {
+  return [`/api/bez-plan`] as const;
+};
+
+export const getGetBezPlanQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBezPlan>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBezPlan>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBezPlanQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBezPlan>>> = ({
+    signal,
+  }) => getBezPlan({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBezPlan>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBezPlanQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBezPlan>>
+>;
+export type GetBezPlanQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current publication plan for Bezopasnost channel
+ */
+
+export function useGetBezPlan<
+  TData = Awaited<ReturnType<typeof getBezPlan>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBezPlan>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBezPlanQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate a new 3-month publication plan for Bezopasnost channel
+ */
+export const getGenerateBezPlanUrl = () => {
+  return `/api/bez-plan`;
+};
+
+export const generateBezPlan = async (
+  options?: RequestInit,
+): Promise<BezPlan> => {
+  return customFetch<BezPlan>(getGenerateBezPlanUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGenerateBezPlanMutationOptions = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateBezPlan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateBezPlan>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["generateBezPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateBezPlan>>,
+    void
+  > = () => {
+    return generateBezPlan(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateBezPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateBezPlan>>
+>;
+
+export type GenerateBezPlanMutationError = ErrorType<OpenaiError>;
+
+/**
+ * @summary Generate a new 3-month publication plan for Bezopasnost channel
+ */
+export const useGenerateBezPlan = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateBezPlan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateBezPlan>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getGenerateBezPlanMutationOptions(options));
 };
 
 /**

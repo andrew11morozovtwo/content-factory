@@ -215,6 +215,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/AutopilotStatus"
 
+  /bez-plan:
+    get:
+      operationId: getBezPlan
+      tags: [posts]
+      summary: Get current publication plan for Bezopasnost channel
+      responses:
+        "200":
+          description: Current plan (or empty plan if not generated yet)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BezPlan"
+    post:
+      operationId: generateBezPlan
+      tags: [posts]
+      summary: Generate a new 3-month publication plan for Bezopasnost channel
+      responses:
+        "201":
+          description: Generated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BezPlan"
+        "502":
+          description: AI generation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+
   /bez-autopilot:
     get:
       operationId: getBezAutopilot
@@ -607,6 +637,57 @@ components:
           type: boolean
       required:
         - enabled
+
+    BezPlanDay:
+      type: object
+      properties:
+        date:
+          type: string
+          description: ISO date YYYY-MM-DD
+        topic:
+          type: string
+      required:
+        - date
+        - topic
+
+    BezPlanWeek:
+      type: object
+      properties:
+        weekStart:
+          type: string
+        weekEnd:
+          type: string
+        theme:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/BezPlanDay"
+      required:
+        - weekStart
+        - weekEnd
+        - theme
+        - days
+
+    BezPlan:
+      type: object
+      properties:
+        generatedAt:
+          type: ["string", "null"]
+          format: date-time
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BezPlanWeek"
+      required:
+        - generatedAt
+        - startDate
+        - endDate
+        - weeks
 
     OpenaiError:
       type: object

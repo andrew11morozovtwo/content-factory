@@ -265,6 +265,7 @@ export async function generatePostFromSources(
 /**
  * Generates a «Безопасность всегда» post autonomously — AI picks a safety topic
  * and writes a short post (300–350 chars) in the channel style.
+ * If a publication plan exists and today's topic is defined there, uses it.
  */
 export async function generateBezPost(scheduledDates: string[]): Promise<AutoGenerateResult> {
   const apiKey = process.env["PROXYAPI_KEY"];
@@ -274,12 +275,24 @@ export async function generateBezPost(scheduledDates: string[]): Promise<AutoGen
   const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
   const month = today.getMonth() + 1; // 1–12
 
+  // Try to get today's topic from the publication plan
+  let planTopic: string | null = null;
+  try {
+    const { getTodayBezTopic } = await import("./bez-plan-generator.js");
+    planTopic = await getTodayBezTopic();
+    if (planTopic) {
+      logger.info({ planTopic }, "Using today topic from BEZ publication plan");
+    }
+  } catch {
+    // plan lookup failure is non-fatal — fall back to free generation
+  }
+
+  const topicInstruction = planTopic
+    ? `Конкретная тема сегодняшнего поста (задана планом публикаций, строго следуй ей): "${planTopic}"`
+    : `Выбери актуальную тему безопасности с учётом сезона (месяц ${month}, день недели ${dayOfWeek}).`;
+
   const systemPrompt = `Ты — автоматический генератор постов для VK-канала «Безопасность всегда».
 Аудитория: домохозяйки, студенты, родители, широкая публика.
-
-Тема дня определяется сезоном и ситуацией. Сейчас: день недели ${dayOfWeek} (0=вс..6=сб), месяц ${month}.
-Выбирай актуальные темы: пожарная безопасность, безопасность на воде, клещи, гроза, ПДД для пешеходов,
-безопасность детей, отравления, падения, бытовые аварии, первая помощь и т.д.
 
 Правила написания поста (СТРОГО соблюдать):
 - Живой, дружелюбный язык — как советует близкий друг
@@ -298,7 +311,7 @@ export async function generateBezPost(scheduledDates: string[]): Promise<AutoGen
   "content": "<полный текст поста 300-350 символов>"
 }`;
 
-  const userPrompt = "Сгенерируй пост о безопасности для публикации сегодня. Выбери актуальную тему с учётом сезона.";
+  const userPrompt = topicInstruction;
 
   const response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
     method: "POST",

@@ -190,6 +190,29 @@ export interface AutopilotInput {
   enabled: boolean;
 }
 
+export interface BezPlanDay {
+  /** ISO date YYYY-MM-DD */
+  date: string;
+  topic: string;
+}
+
+export interface BezPlanWeek {
+  weekStart: string;
+  weekEnd: string;
+  theme: string;
+  days: BezPlanDay[];
+}
+
+export interface BezPlan {
+  /** @nullable */
+  generatedAt: string | null;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  endDate: string | null;
+  weeks: BezPlanWeek[];
+}
+
 export interface OpenaiError {
   error: string;
 }
