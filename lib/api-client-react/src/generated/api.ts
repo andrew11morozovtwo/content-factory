@@ -672,7 +672,86 @@ export const useAutoGenerate = <
 };
 
 /**
- * @summary Get autopilot status
+ * @summary Auto-generate a scheduled post for Bezopasnost channel
+ */
+export const getBezAutoGenerateUrl = () => {
+  return `/api/bez-auto-generate`;
+};
+
+export const bezAutoGenerate = async (options?: RequestInit): Promise<Post> => {
+  return customFetch<Post>(getBezAutoGenerateUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getBezAutoGenerateMutationOptions = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bezAutoGenerate>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bezAutoGenerate>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["bezAutoGenerate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bezAutoGenerate>>,
+    void
+  > = () => {
+    return bezAutoGenerate(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BezAutoGenerateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bezAutoGenerate>>
+>;
+
+export type BezAutoGenerateMutationError = ErrorType<OpenaiError>;
+
+/**
+ * @summary Auto-generate a scheduled post for Bezopasnost channel
+ */
+export const useBezAutoGenerate = <
+  TError = ErrorType<OpenaiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bezAutoGenerate>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bezAutoGenerate>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getBezAutoGenerateMutationOptions(options));
+};
+
+/**
+ * @summary Get autopilot status (Я-Инженер)
  */
 export const getGetAutopilotUrl = () => {
   return `/api/autopilot`;
@@ -723,7 +802,7 @@ export type GetAutopilotQueryResult = NonNullable<
 export type GetAutopilotQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get autopilot status
+ * @summary Get autopilot status (Я-Инженер)
  */
 
 export function useGetAutopilot<
@@ -747,7 +826,7 @@ export function useGetAutopilot<
 }
 
 /**
- * @summary Enable or disable autopilot
+ * @summary Enable or disable autopilot (Я-Инженер)
  */
 export const getSetAutopilotUrl = () => {
   return `/api/autopilot`;
@@ -810,7 +889,7 @@ export type SetAutopilotMutationBody = BodyType<AutopilotInput>;
 export type SetAutopilotMutationError = ErrorType<unknown>;
 
 /**
- * @summary Enable or disable autopilot
+ * @summary Enable or disable autopilot (Я-Инженер)
  */
 export const useSetAutopilot = <
   TError = ErrorType<unknown>,
@@ -830,6 +909,167 @@ export const useSetAutopilot = <
   TContext
 > => {
   return useMutation(getSetAutopilotMutationOptions(options));
+};
+
+/**
+ * @summary Get autopilot status (Безопасность всегда)
+ */
+export const getGetBezAutopilotUrl = () => {
+  return `/api/bez-autopilot`;
+};
+
+export const getBezAutopilot = async (
+  options?: RequestInit,
+): Promise<AutopilotStatus> => {
+  return customFetch<AutopilotStatus>(getGetBezAutopilotUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBezAutopilotQueryKey = () => {
+  return [`/api/bez-autopilot`] as const;
+};
+
+export const getGetBezAutopilotQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBezAutopilot>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBezAutopilot>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBezAutopilotQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBezAutopilot>>> = ({
+    signal,
+  }) => getBezAutopilot({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBezAutopilot>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBezAutopilotQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBezAutopilot>>
+>;
+export type GetBezAutopilotQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get autopilot status (Безопасность всегда)
+ */
+
+export function useGetBezAutopilot<
+  TData = Awaited<ReturnType<typeof getBezAutopilot>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBezAutopilot>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBezAutopilotQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Enable or disable autopilot (Безопасность всегда)
+ */
+export const getSetBezAutopilotUrl = () => {
+  return `/api/bez-autopilot`;
+};
+
+export const setBezAutopilot = async (
+  autopilotInput: AutopilotInput,
+  options?: RequestInit,
+): Promise<AutopilotStatus> => {
+  return customFetch<AutopilotStatus>(getSetBezAutopilotUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(autopilotInput),
+  });
+};
+
+export const getSetBezAutopilotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setBezAutopilot>>,
+    TError,
+    { data: BodyType<AutopilotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setBezAutopilot>>,
+  TError,
+  { data: BodyType<AutopilotInput> },
+  TContext
+> => {
+  const mutationKey = ["setBezAutopilot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setBezAutopilot>>,
+    { data: BodyType<AutopilotInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setBezAutopilot(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetBezAutopilotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setBezAutopilot>>
+>;
+export type SetBezAutopilotMutationBody = BodyType<AutopilotInput>;
+export type SetBezAutopilotMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Enable or disable autopilot (Безопасность всегда)
+ */
+export const useSetBezAutopilot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setBezAutopilot>>,
+    TError,
+    { data: BodyType<AutopilotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setBezAutopilot>>,
+  TError,
+  { data: BodyType<AutopilotInput> },
+  TContext
+> => {
+  return useMutation(getSetBezAutopilotMutationOptions(options));
 };
 
 /**

@@ -195,7 +195,7 @@ export const GetPostStatsResponse = zod.object({
 });
 
 /**
- * @summary Get autopilot status
+ * @summary Get autopilot status (Я-Инженер)
  */
 export const GetAutopilotResponse = zod.object({
   enabled: zod.boolean(),
@@ -204,13 +204,35 @@ export const GetAutopilotResponse = zod.object({
 });
 
 /**
- * @summary Enable or disable autopilot
+ * @summary Enable or disable autopilot (Я-Инженер)
  */
 export const SetAutopilotBody = zod.object({
   enabled: zod.boolean(),
 });
 
 export const SetAutopilotResponse = zod.object({
+  enabled: zod.boolean(),
+  lastRunAt: zod.coerce.date().nullable(),
+  nextRunAt: zod.coerce.date().nullable(),
+});
+
+/**
+ * @summary Get autopilot status (Безопасность всегда)
+ */
+export const GetBezAutopilotResponse = zod.object({
+  enabled: zod.boolean(),
+  lastRunAt: zod.coerce.date().nullable(),
+  nextRunAt: zod.coerce.date().nullable(),
+});
+
+/**
+ * @summary Enable or disable autopilot (Безопасность всегда)
+ */
+export const SetBezAutopilotBody = zod.object({
+  enabled: zod.boolean(),
+});
+
+export const SetBezAutopilotResponse = zod.object({
   enabled: zod.boolean(),
   lastRunAt: zod.coerce.date().nullable(),
   nextRunAt: zod.coerce.date().nullable(),

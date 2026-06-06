@@ -5,14 +5,16 @@ import { GetPostResponse } from "@workspace/api-zod";
 import {
   getFreshPosts,
   generatePostFromSources,
+  generateBezPost,
   markHashesUsed,
 } from "../lib/auto-generator.js";
 
 const router: IRouter = Router();
 
+// ─── Я-Инженер: парсит Telegram-источник и генерирует пост ───────────────────
+
 router.post("/auto-generate", async (req, res): Promise<void> => {
   try {
-    // Get occupied scheduled dates
     const scheduled = await db
       .select({ scheduledAt: postsTable.scheduledAt })
       .from(postsTable)
@@ -22,17 +24,13 @@ router.post("/auto-generate", async (req, res): Promise<void> => {
       .map((r) => r.scheduledAt?.toISOString() ?? "")
       .filter(Boolean);
 
-    // Get fresh (not yet used) posts from source channel
     const { posts: freshPosts, wasReset } = await getFreshPosts();
-
     if (wasReset) {
       req.log.info("used_sources history was reset — all posts re-available");
     }
 
-    // Generate post via AI (returns which source hash it used)
     const generated = await generatePostFromSources(freshPosts, scheduledDates);
 
-    // Save to DB as scheduled
     const [post] = await db
       .insert(postsTable)
       .values({
@@ -40,21 +38,60 @@ router.post("/auto-generate", async (req, res): Promise<void> => {
         content: generated.content,
         status: "scheduled",
         recommendedDay: generated.recommendedDay,
+        channel: "ya-inzhener",
         scheduledAt: new Date(generated.scheduledAt),
       })
       .returning();
 
-    // Mark the used source post so it won't be picked again
     await markHashesUsed([generated.usedHash]);
 
     req.log.info(
       { postId: post.id, scheduledAt: generated.scheduledAt, usedHash: generated.usedHash },
-      "Auto-generated post saved",
+      "YI Auto-generated post saved",
     );
 
     res.status(201).json(GetPostResponse.parse(post));
   } catch (err) {
-    req.log.error({ err }, "Auto-generate failed");
+    req.log.error({ err }, "YI Auto-generate failed");
+    res.status(502).json({ error: String(err) });
+  }
+});
+
+// ─── Безопасность всегда: AI выбирает тему безопасности самостоятельно ────────
+
+router.post("/bez-auto-generate", async (req, res): Promise<void> => {
+  try {
+    const scheduled = await db
+      .select({ scheduledAt: postsTable.scheduledAt })
+      .from(postsTable)
+      .where(eq(postsTable.status, "scheduled"));
+
+    const scheduledDates = scheduled
+      .map((r) => r.scheduledAt?.toISOString() ?? "")
+      .filter(Boolean);
+
+    const generated = await generateBezPost(scheduledDates);
+
+    const [post] = await db
+      .insert(postsTable)
+      .values({
+        title: generated.title,
+        content: generated.content,
+        status: "scheduled",
+        recommendedDay: generated.recommendedDay,
+        channel: "bezopasnost",
+        scheduledAt: new Date(generated.scheduledAt),
+      })
+      .returning();
+
+    req.log.info(
+      { postId: post.id, scheduledAt: generated.scheduledAt },
+      "BEZ Auto-generated post saved",
+    );
+
+    res.status(201).json(GetPostResponse.parse(post));
+  } catch (err) {
+    req.log.error({ err }, "BEZ Auto-generate failed");
     res.status(502).json({ error: String(err) });
   }
 });

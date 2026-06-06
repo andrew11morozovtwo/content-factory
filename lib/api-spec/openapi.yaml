@@ -166,11 +166,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/OpenaiError"
 
+  /bez-auto-generate:
+    post:
+      operationId: bezAutoGenerate
+      tags: [posts]
+      summary: Auto-generate a scheduled post for Bezopasnost channel
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "502":
+          description: AI error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+
   /autopilot:
     get:
       operationId: getAutopilot
       tags: [posts]
-      summary: Get autopilot status
+      summary: Get autopilot status (Я-Инженер)
       responses:
         "200":
           description: Autopilot status
@@ -181,7 +200,37 @@ paths:
     post:
       operationId: setAutopilot
       tags: [posts]
-      summary: Enable or disable autopilot
+      summary: Enable or disable autopilot (Я-Инженер)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutopilotInput"
+      responses:
+        "200":
+          description: Updated autopilot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutopilotStatus"
+
+  /bez-autopilot:
+    get:
+      operationId: getBezAutopilot
+      tags: [posts]
+      summary: Get autopilot status (Безопасность всегда)
+      responses:
+        "200":
+          description: Autopilot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutopilotStatus"
+    post:
+      operationId: setBezAutopilot
+      tags: [posts]
+      summary: Enable or disable autopilot (Безопасность всегда)
       requestBody:
         required: true
         content:

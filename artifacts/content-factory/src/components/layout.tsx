@@ -9,6 +9,9 @@ import {
   getGetAutopilotQueryKey,
   useGetAutopilot,
   useSetAutopilot,
+  getGetBezAutopilotQueryKey,
+  useGetBezAutopilot,
+  useSetBezAutopilot,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -52,11 +55,19 @@ function NavLink({ href, label, icon: Icon, isActive }: { href: string; label: s
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const queryClient = useQueryClient();
+
+  // ── Я-Инженер Автомат ────────────────────────────────────────────────────────
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoState, setAutoState] = useState<AutoState>({ stage: "idle" });
   const isGenerating = useRef(false);
-  const queryClient = useQueryClient();
 
+  // ── Безопасность Автомат ─────────────────────────────────────────────────────
+  const [bezAutoOpen, setBezAutoOpen] = useState(false);
+  const [bezAutoState, setBezAutoState] = useState<AutoState>({ stage: "idle" });
+  const bezIsGenerating = useRef(false);
+
+  // ── Autopilot hooks ──────────────────────────────────────────────────────────
   const { data: autopilot } = useGetAutopilot();
   const { mutate: setAutopilot, isPending: autopilotPending } = useSetAutopilot({
     mutation: {
@@ -66,10 +77,21 @@ export function Layout({ children }: { children: ReactNode }) {
     },
   });
 
+  const { data: bezAutopilot } = useGetBezAutopilot();
+  const { mutate: setBezAutopilot, isPending: bezAutopilotPending } = useSetBezAutopilot({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetBezAutopilotQueryKey() });
+      },
+    },
+  });
+
+  // ── Routing helpers ──────────────────────────────────────────────────────────
   const isBez = location.startsWith("/bez");
   const allLinks = isBez ? BEZ_LINKS : YI_LINKS;
   const currentLabel = allLinks.find((l) => l.href === location)?.label ?? "Контент Фабрика";
 
+  // ── Я-Инженер auto-generate ──────────────────────────────────────────────────
   const handleAutoGenerate = async () => {
     if (isGenerating.current) return;
     isGenerating.current = true;
@@ -82,14 +104,7 @@ export function Layout({ children }: { children: ReactNode }) {
       }
       const post = (await resp.json()) as { title: string; scheduledAt: string | null; content: string };
       await queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
-      setAutoState({
-        stage: "done",
-        post: {
-          title: post.title,
-          scheduledAt: post.scheduledAt ?? null,
-          content: post.content,
-        },
-      });
+      setAutoState({ stage: "done", post: { title: post.title, scheduledAt: post.scheduledAt ?? null, content: post.content } });
     } catch (err) {
       setAutoState({ stage: "error", message: String(err) });
     } finally {
@@ -97,15 +112,32 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   };
 
-  const openDialog = () => {
-    setAutoState({ stage: "idle" });
-    setAutoOpen(true);
+  const openDialog = () => { setAutoState({ stage: "idle" }); setAutoOpen(true); };
+  const closeDialog = () => { setAutoOpen(false); setAutoState({ stage: "idle" }); };
+
+  // ── Безопасность auto-generate ───────────────────────────────────────────────
+  const handleBezAutoGenerate = async () => {
+    if (bezIsGenerating.current) return;
+    bezIsGenerating.current = true;
+    setBezAutoState({ stage: "loading" });
+    try {
+      const resp = await fetch("/api/bez-auto-generate", { method: "POST" });
+      if (!resp.ok) {
+        const err = (await resp.json()) as { error?: string };
+        throw new Error(err.error ?? `HTTP ${resp.status}`);
+      }
+      const post = (await resp.json()) as { title: string; scheduledAt: string | null; content: string };
+      await queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+      setBezAutoState({ stage: "done", post: { title: post.title, scheduledAt: post.scheduledAt ?? null, content: post.content } });
+    } catch (err) {
+      setBezAutoState({ stage: "error", message: String(err) });
+    } finally {
+      bezIsGenerating.current = false;
+    }
   };
 
-  const closeDialog = () => {
-    setAutoOpen(false);
-    setAutoState({ stage: "idle" });
-  };
+  const openBezDialog = () => { setBezAutoState({ stage: "idle" }); setBezAutoOpen(true); };
+  const closeBezDialog = () => { setBezAutoOpen(false); setBezAutoState({ stage: "idle" }); };
 
   return (
     <div className="flex min-h-[100dvh] bg-background">
@@ -182,11 +214,47 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* ── VK Безопасность всегда ── */}
           <div>
-            <div className="flex items-center gap-1.5 px-2 mb-1.5">
-              <ShieldCheck className="w-3 h-3 text-sidebar-foreground/40" />
-              <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-                Безопасность
-              </span>
+            <div className="flex items-center justify-between px-2 mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3 h-3 text-sidebar-foreground/40" />
+                <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                  Безопасность
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={openBezDialog}
+                className="h-5 px-1.5 text-[10px] font-semibold gap-1 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+              >
+                <Bot className="w-3 h-3" />
+                Автомат
+              </Button>
+            </div>
+
+            {/* Автопилот Безопасность */}
+            <div className="flex items-center justify-between px-2 py-1.5 mb-1 rounded-md bg-sidebar-accent/20 border border-sidebar-border/50">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-semibold text-sidebar-foreground/60 leading-tight">
+                  Автопилот
+                </span>
+                {bezAutopilot?.nextRunAt && (
+                  <span className="text-[9px] text-sidebar-foreground/40 leading-tight truncate">
+                    след. {format(new Date(bezAutopilot.nextRunAt), "HH:mm d MMM", { locale: ru })}
+                  </span>
+                )}
+                {bezAutopilot?.lastRunAt && (
+                  <span className="text-[9px] text-sidebar-foreground/30 leading-tight truncate">
+                    был {format(new Date(bezAutopilot.lastRunAt), "d MMM HH:mm", { locale: ru })}
+                  </span>
+                )}
+              </div>
+              <Switch
+                checked={bezAutopilot?.enabled ?? false}
+                disabled={bezAutopilotPending}
+                onCheckedChange={(checked) => setBezAutopilot({ data: { enabled: checked } })}
+                className="shrink-0 scale-75"
+              />
             </div>
 
             <div className="space-y-0.5">
@@ -278,13 +346,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      {/* ── Диалог Автомат ── */}
+      {/* ── Диалог Автомат — Я-Инженер ── */}
       <Dialog open={autoOpen} onOpenChange={(o) => !o && closeDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bot className="w-4 h-4" />
-              Автоматическая генерация
+              Автоматическая генерация — Я-Инженер
             </DialogTitle>
           </DialogHeader>
 
@@ -360,6 +428,87 @@ export function Layout({ children }: { children: ReactNode }) {
                   </p>
                 </div>
                 <Button onClick={() => void handleAutoGenerate()} className="w-full gap-2">
+                  Попробовать снова
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Диалог Автомат — Безопасность всегда ── */}
+      <Dialog open={bezAutoOpen} onOpenChange={(o) => !o && closeBezDialog()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-500" />
+              Автоматическая генерация — Безопасность
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-1">
+            {bezAutoState.stage === "idle" && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  AI сам выберет актуальную тему безопасности (с учётом сезона и времени года) и напишет короткий пост для канала «Безопасность всегда» — сразу запланирует на ближайший свободный день.
+                </p>
+                <Button onClick={() => void handleBezAutoGenerate()} className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white">
+                  <Bot className="w-4 h-4" />
+                  Сгенерировать
+                </Button>
+              </div>
+            )}
+
+            {bezAutoState.stage === "loading" && (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Выбираю тему безопасности, пишу пост...
+                  <br />
+                  <span className="text-xs opacity-70">Обычно занимает 10–20 секунд</span>
+                </p>
+              </div>
+            )}
+
+            {bezAutoState.stage === "done" && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 p-3">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-green-800 dark:text-green-300 space-y-1">
+                    <p className="font-medium">{bezAutoState.post.title}</p>
+                    {bezAutoState.post.scheduledAt && (
+                      <p className="flex items-center gap-1 text-xs opacity-80">
+                        <CalendarIcon className="w-3 h-3" />
+                        Запланировано на{" "}
+                        {format(new Date(bezAutoState.post.scheduledAt), "d MMMM yyyy", { locale: ru })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-4 bg-muted/40 rounded p-2 font-mono leading-relaxed">
+                  {bezAutoState.post.content}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={closeBezDialog} className="flex-1">
+                    Закрыть
+                  </Button>
+                  <Button onClick={() => setBezAutoState({ stage: "idle" })} variant="secondary" className="flex-1 gap-1">
+                    <Bot className="w-3 h-3" />
+                    Ещё один
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {bezAutoState.stage === "error" && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-3">
+                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800 dark:text-red-300">
+                    {bezAutoState.message}
+                  </p>
+                </div>
+                <Button onClick={() => void handleBezAutoGenerate()} className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white">
                   Попробовать снова
                 </Button>
               </div>

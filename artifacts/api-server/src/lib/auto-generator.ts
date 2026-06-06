@@ -261,3 +261,98 @@ export async function generatePostFromSources(
     usedHash,
   };
 }
+
+/**
+ * Generates a «Безопасность всегда» post autonomously — AI picks a safety topic
+ * and writes a short post (300–350 chars) in the channel style.
+ */
+export async function generateBezPost(scheduledDates: string[]): Promise<AutoGenerateResult> {
+  const apiKey = process.env["PROXYAPI_KEY"];
+  if (!apiKey) throw new Error("PROXYAPI_KEY not configured");
+
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
+  const month = today.getMonth() + 1; // 1–12
+
+  const systemPrompt = `Ты — автоматический генератор постов для VK-канала «Безопасность всегда».
+Аудитория: домохозяйки, студенты, родители, широкая публика.
+
+Тема дня определяется сезоном и ситуацией. Сейчас: день недели ${dayOfWeek} (0=вс..6=сб), месяц ${month}.
+Выбирай актуальные темы: пожарная безопасность, безопасность на воде, клещи, гроза, ПДД для пешеходов,
+безопасность детей, отравления, падения, бытовые аварии, первая помощь и т.д.
+
+Правила написания поста (СТРОГО соблюдать):
+- Живой, дружелюбный язык — как советует близкий друг
+- СТРУКТУРА: Название с эмодзи → «---» → Вводная фраза → «---» → 5 правил с эмодзи → «---» → Призыв подписаться → хэштеги
+- Каждое правило с новой строки, начинается с эмодзи, без нумерации цифрами
+- Длина СТРОГО 300–350 символов с пробелами — это критически важно!
+- Много эмодзи (5–10 на пост)
+- Хэштеги по теме (3–5 штук), без #ЯИнженер
+- ЗАПРЕЩЕНО использовать Markdown (**, *, _)
+- Призыв должен включать приглашение поделиться с друзьями
+
+Ответь строго в формате JSON (без markdown-блоков):
+{
+  "recommendedDay": <число 0-6, день недели для публикации>,
+  "title": "<заголовок поста для сохранения в БД, до 50 символов>",
+  "content": "<полный текст поста 300-350 символов>"
+}`;
+
+  const userPrompt = "Сгенерируй пост о безопасности для публикации сегодня. Выбери актуальную тему с учётом сезона.";
+
+  const response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.85,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenAI error ${response.status}: ${err}`);
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+
+  const raw = data.choices[0]?.message?.content ?? "{}";
+  const parsed = JSON.parse(raw) as {
+    recommendedDay: number;
+    title: string;
+    content: string;
+  };
+
+  const dayIndex =
+    typeof parsed.recommendedDay === "number" &&
+    parsed.recommendedDay >= 0 &&
+    parsed.recommendedDay <= 6
+      ? parsed.recommendedDay
+      : today.getDay();
+
+  const usedHash = hashText(parsed.content ?? "");
+  const scheduledAt = findNextFreeDate(dayIndex, scheduledDates);
+
+  logger.info(
+    { recommendedDay: dayIndex, scheduledAt, channel: "bezopasnost" },
+    "Auto-generated Bezopasnost post",
+  );
+
+  return {
+    title: parsed.title ?? "Безопасность всегда",
+    content: parsed.content ?? "",
+    recommendedDay: dayIndex,
+    scheduledAt: scheduledAt.toISOString(),
+    usedHash,
+  };
+}
