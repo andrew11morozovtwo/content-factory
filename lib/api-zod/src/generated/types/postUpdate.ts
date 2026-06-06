@@ -5,12 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PostUpdateChannel } from "./postUpdateChannel";
 import type { PostUpdateStatus } from "./postUpdateStatus";
 
 export interface PostUpdate {
   title?: string;
   content?: string;
   status?: PostUpdateStatus;
+  channel?: PostUpdateChannel;
   /** @nullable */
   scheduledAt?: Date | null;
   /** @nullable */

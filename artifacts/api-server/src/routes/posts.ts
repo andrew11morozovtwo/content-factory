@@ -120,11 +120,13 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
     return;
   }
 
+  const channel = post.channel ?? "ya-inzhener";
+
   let vkPostId: number;
   try {
-    vkPostId = await publishPostToVk(post.id, post.content);
+    vkPostId = await publishPostToVk(post.id, post.content, channel);
   } catch (err) {
-    req.log.error({ err, postId: post.id }, "Immediate VK publish failed");
+    req.log.error({ err, postId: post.id, channel }, "Immediate VK publish failed");
     res.status(502).json({ error: "VK publish failed" });
     return;
   }
@@ -132,9 +134,10 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
   // Publish to Telegram independently — don't abort if it fails
   let telegramMessageId: number | undefined;
   try {
-    telegramMessageId = await publishPostToTelegram(post.id, post.content);
+    const msgId = await publishPostToTelegram(post.id, post.content, channel);
+    telegramMessageId = msgId ?? undefined;
   } catch (err) {
-    req.log.error({ err, postId: post.id }, "Immediate Telegram publish failed");
+    req.log.error({ err, postId: post.id, channel }, "Immediate Telegram publish failed");
   }
 
   const [updated] = await db

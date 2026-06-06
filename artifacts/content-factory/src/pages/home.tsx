@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost, useListPosts } from "@workspace/api-client-react";
 import { isSameDay } from "date-fns";
-import { Bot, Send, Save, ArrowRight, Loader2, Calendar } from "lucide-react";
+import { Bot, Send, Save, ArrowRight, Loader2, Calendar, ShieldCheck, Cpu } from "lucide-react";
 
 const DAYS = [
   { label: "Пн", index: 1 },
@@ -19,6 +19,12 @@ const DAYS = [
 
 const DAYS_RU_FULL = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
 
+type Channel = "ya-inzhener" | "bezopasnost";
+
+const CHANNELS: { value: Channel; label: string; icon: typeof Cpu }[] = [
+  { value: "ya-inzhener", label: "Я-Инженер", icon: Cpu },
+  { value: "bezopasnost", label: "Безопасность всегда", icon: ShieldCheck },
+];
 
 export default function Home() {
   const [idea, setIdea] = useState("");
@@ -32,6 +38,7 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
   const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
   const [userPickedDay, setUserPickedDay] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<Channel>("ya-inzhener");
   const [, setLocation] = useLocation();
   const { data: posts } = useListPosts();
 
@@ -188,7 +195,6 @@ export default function Home() {
     const candidate = new Date(today);
     candidate.setDate(today.getDate() + daysUntil);
 
-    // Перебираем недели вперёд, пока не найдём свободный день
     for (let week = 0; week < 52; week++) {
       const isOccupied = occupiedDates.some((d) => isSameDay(d, candidate));
       if (!isOccupied) return new Date(candidate);
@@ -208,6 +214,7 @@ export default function Home() {
           status: "draft",
           conversationId,
           recommendedDay: selectedDay,
+          channel: selectedChannel,
         },
       });
       setLocation("/posts");
@@ -228,6 +235,7 @@ export default function Home() {
           conversationId,
           recommendedDay: selectedDay,
           scheduledAt: scheduledAt.toISOString(),
+          channel: selectedChannel,
         },
       });
       setLocation("/calendar");
@@ -271,6 +279,35 @@ export default function Home() {
                 )}
                 Сгенерировать
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Channel selector */}
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader className="bg-muted/30 pb-3 border-b">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Канал публикации
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-2 gap-2">
+              {CHANNELS.map((ch) => {
+                const Icon = ch.icon;
+                const isActive = selectedChannel === ch.value;
+                return (
+                  <Button
+                    key={ch.value}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedChannel(ch.value)}
+                    className="justify-start gap-2 h-9"
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate text-xs">{ch.label}</span>
+                  </Button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

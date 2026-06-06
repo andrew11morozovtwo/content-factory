@@ -5,12 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PostInputChannel } from "./postInputChannel";
 import type { PostInputStatus } from "./postInputStatus";
 
 export interface PostInput {
   title: string;
   content: string;
   status?: PostInputStatus;
+  channel?: PostInputChannel;
   /** @nullable */
   scheduledAt?: Date | null;
   /** @nullable */

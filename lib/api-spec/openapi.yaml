@@ -344,6 +344,11 @@ components:
         status:
           type: string
           enum: [draft, scheduled, published, rejected]
+        channel:
+          type: string
+          enum: [ya-inzhener, bezopasnost]
+          description: "Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда)"
+          default: ya-inzhener
         scheduledAt:
           type: ["string", "null"]
           format: date-time
@@ -375,6 +380,7 @@ components:
         - title
         - content
         - status
+        - channel
         - scheduledAt
         - feedback
         - conversationId
@@ -395,6 +401,10 @@ components:
         status:
           type: string
           enum: [draft, scheduled, published, rejected]
+        channel:
+          type: string
+          enum: [ya-inzhener, bezopasnost]
+          default: ya-inzhener
         scheduledAt:
           type: ["string", "null"]
           format: date-time
@@ -419,6 +429,9 @@ components:
         status:
           type: string
           enum: [draft, scheduled, published, rejected]
+        channel:
+          type: string
+          enum: [ya-inzhener, bezopasnost]
         scheduledAt:
           type: ["string", "null"]
           format: date-time

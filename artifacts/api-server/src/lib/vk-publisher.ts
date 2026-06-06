@@ -7,13 +7,26 @@ const VK_API_VERSION = "5.131";
 const VK_API_URL = "https://api.vk.com/method/wall.post";
 const POLL_INTERVAL_MS = 60_000;
 
-export async function publishPostToVk(postId: number, content: string): Promise<number> {
+function getVkCredentials(channel: string): { token: string; groupId: string } {
+  if (channel === "bezopasnost") {
+    const token = process.env["VK2_ACCESS_TOKEN"] ?? process.env["VK_ACCESS_TOKEN"];
+    const groupId = process.env["VK2_GROUP_ID"];
+    if (!token || !groupId) {
+      throw new Error("VK2_ACCESS_TOKEN / VK_ACCESS_TOKEN or VK2_GROUP_ID not configured for channel bezopasnost");
+    }
+    return { token, groupId };
+  }
+
   const token = process.env["VK_ACCESS_TOKEN"];
   const groupId = process.env["VK_GROUP_ID"];
-
   if (!token || !groupId) {
     throw new Error("VK_ACCESS_TOKEN or VK_GROUP_ID not configured");
   }
+  return { token, groupId };
+}
+
+export async function publishPostToVk(postId: number, content: string, channel = "ya-inzhener"): Promise<number> {
+  const { token, groupId } = getVkCredentials(channel);
 
   // Strip any non-numeric prefix (e.g. "club238494545" → "238494545")
   const numericGroupId = groupId.replace(/\D/g, "");
@@ -39,7 +52,7 @@ export async function publishPostToVk(postId: number, content: string): Promise<
   }
 
   const vkPostId = data.response!.post_id;
-  logger.info({ postId, vkPostId }, "Published to VK");
+  logger.info({ postId, vkPostId, channel }, "Published to VK");
   return vkPostId;
 }
 
@@ -50,7 +63,6 @@ async function processDuePosts(): Promise<void> {
     .select()
     .from(postsTable)
     .where(
-      // status = 'scheduled' AND scheduledAt <= now
       lte(postsTable.scheduledAt, now)
     );
 
@@ -61,21 +73,23 @@ async function processDuePosts(): Promise<void> {
   logger.info({ count: scheduledDue.length }, "Processing due posts for VK");
 
   for (const post of scheduledDue) {
+    const channel = post.channel ?? "ya-inzhener";
     let vkPostId: number | undefined;
     let telegramMessageId: number | undefined;
 
     // Publish to VK
     try {
-      vkPostId = await publishPostToVk(post.id, post.content);
+      vkPostId = await publishPostToVk(post.id, post.content, channel);
     } catch (err) {
-      logger.error({ err, postId: post.id }, "Failed to publish post to VK");
+      logger.error({ err, postId: post.id, channel }, "Failed to publish post to VK");
     }
 
     // Publish to Telegram (independently — VK failure doesn't block it)
     try {
-      telegramMessageId = await publishPostToTelegram(post.id, post.content);
+      const msgId = await publishPostToTelegram(post.id, post.content, channel);
+      telegramMessageId = msgId ?? undefined;
     } catch (err) {
-      logger.error({ err, postId: post.id }, "Failed to publish post to Telegram");
+      logger.error({ err, postId: post.id, channel }, "Failed to publish post to Telegram");
     }
 
     // Mark as published regardless of which channels succeeded
@@ -84,7 +98,7 @@ async function processDuePosts(): Promise<void> {
       .set({ status: "published", publishedAt: new Date(), vkPostId: vkPostId ?? null, telegramMessageId: telegramMessageId ?? null, updatedAt: new Date() })
       .where(eq(postsTable.id, post.id));
 
-    logger.info({ postId: post.id, title: post.title }, "Post processed and marked as published");
+    logger.info({ postId: post.id, title: post.title, channel }, "Post processed and marked as published");
   }
 }
 

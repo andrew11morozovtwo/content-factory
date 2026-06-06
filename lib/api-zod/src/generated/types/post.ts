@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PostChannel } from "./postChannel";
 import type { PostStatus } from "./postStatus";
 
 export interface Post {
@@ -12,6 +13,8 @@ export interface Post {
   title: string;
   content: string;
   status: PostStatus;
+  /** Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда) */
+  channel: PostChannel;
   /** @nullable */
   scheduledAt: Date | null;
   /** @nullable */

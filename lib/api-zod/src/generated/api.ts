@@ -18,11 +18,19 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List all posts
  */
+export const listPostsResponseChannelDefault = `ya-inzhener`;
+
 export const ListPostsResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
   content: zod.string(),
   status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  channel: zod
+    .enum(["ya-inzhener", "bezopasnost"])
+    .default(listPostsResponseChannelDefault)
+    .describe(
+      "Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда)",
+    ),
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),
@@ -50,10 +58,15 @@ export const ListPostsResponse = zod.array(ListPostsResponseItem);
 /**
  * @summary Create a new post
  */
+export const createPostBodyChannelDefault = `ya-inzhener`;
+
 export const CreatePostBody = zod.object({
   title: zod.string(),
   content: zod.string(),
   status: zod.enum(["draft", "scheduled", "published", "rejected"]).optional(),
+  channel: zod
+    .enum(["ya-inzhener", "bezopasnost"])
+    .default(createPostBodyChannelDefault),
   scheduledAt: zod.coerce.date().nullish(),
   feedback: zod.string().nullish(),
   conversationId: zod.number().nullish(),
@@ -70,11 +83,19 @@ export const GetPostParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const getPostResponseChannelDefault = `ya-inzhener`;
+
 export const GetPostResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
   content: zod.string(),
   status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  channel: zod
+    .enum(["ya-inzhener", "bezopasnost"])
+    .default(getPostResponseChannelDefault)
+    .describe(
+      "Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда)",
+    ),
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),
@@ -109,6 +130,7 @@ export const UpdatePostBody = zod.object({
   title: zod.string().optional(),
   content: zod.string().optional(),
   status: zod.enum(["draft", "scheduled", "published", "rejected"]).optional(),
+  channel: zod.enum(["ya-inzhener", "bezopasnost"]).optional(),
   scheduledAt: zod.coerce.date().nullish(),
   feedback: zod.string().nullish(),
   conversationId: zod.number().nullish(),
@@ -118,11 +140,19 @@ export const UpdatePostBody = zod.object({
     .describe("AI-recommended day of week (0=Sun, 1=Mon, ..., 6=Sat)"),
 });
 
+export const updatePostResponseChannelDefault = `ya-inzhener`;
+
 export const UpdatePostResponse = zod.object({
   id: zod.number(),
   title: zod.string(),
   content: zod.string(),
   status: zod.enum(["draft", "scheduled", "published", "rejected"]),
+  channel: zod
+    .enum(["ya-inzhener", "bezopasnost"])
+    .default(updatePostResponseChannelDefault)
+    .describe(
+      "Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда)",
+    ),
   scheduledAt: zod.coerce.date().nullable(),
   feedback: zod.string().nullable(),
   conversationId: zod.number().nullable(),

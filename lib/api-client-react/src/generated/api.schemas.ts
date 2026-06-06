@@ -22,11 +22,23 @@ export const PostStatus = {
   rejected: "rejected",
 } as const;
 
+/**
+ * Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда)
+ */
+export type PostChannel = (typeof PostChannel)[keyof typeof PostChannel];
+
+export const PostChannel = {
+  "ya-inzhener": "ya-inzhener",
+  bezopasnost: "bezopasnost",
+} as const;
+
 export interface Post {
   id: number;
   title: string;
   content: string;
   status: PostStatus;
+  /** Publishing channel (ya-inzhener = Я-Инженер, bezopasnost = Безопасность всегда) */
+  channel: PostChannel;
   /** @nullable */
   scheduledAt: string | null;
   /** @nullable */
@@ -67,10 +79,19 @@ export const PostInputStatus = {
   rejected: "rejected",
 } as const;
 
+export type PostInputChannel =
+  (typeof PostInputChannel)[keyof typeof PostInputChannel];
+
+export const PostInputChannel = {
+  "ya-inzhener": "ya-inzhener",
+  bezopasnost: "bezopasnost",
+} as const;
+
 export interface PostInput {
   title: string;
   content: string;
   status?: PostInputStatus;
+  channel?: PostInputChannel;
   /** @nullable */
   scheduledAt?: string | null;
   /** @nullable */
@@ -94,10 +115,19 @@ export const PostUpdateStatus = {
   rejected: "rejected",
 } as const;
 
+export type PostUpdateChannel =
+  (typeof PostUpdateChannel)[keyof typeof PostUpdateChannel];
+
+export const PostUpdateChannel = {
+  "ya-inzhener": "ya-inzhener",
+  bezopasnost: "bezopasnost",
+} as const;
+
 export interface PostUpdate {
   title?: string;
   content?: string;
   status?: PostUpdateStatus;
+  channel?: PostUpdateChannel;
   /** @nullable */
   scheduledAt?: string | null;
   /** @nullable */

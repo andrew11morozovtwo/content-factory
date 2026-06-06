@@ -2,7 +2,13 @@ import { logger } from "./logger";
 
 const TG_API = "https://api.telegram.org";
 
-export async function publishPostToTelegram(postId: number, content: string): Promise<number> {
+export async function publishPostToTelegram(postId: number, content: string, channel = "ya-inzhener"): Promise<number | null> {
+  // Placeholder: Telegram not configured for this channel yet
+  if (channel === "bezopasnost") {
+    logger.info({ postId, channel }, "Telegram publish skipped — channel not configured yet (placeholder)");
+    return null;
+  }
+
   const token = process.env["TELEGRAM_BOT_TOKEN"];
   const channelId = process.env["TELEGRAM_CHANNEL_ID"];
 

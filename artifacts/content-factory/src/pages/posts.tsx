@@ -26,6 +26,8 @@ import {
   Zap,
   Save,
   AlertTriangle,
+  Cpu,
+  ShieldCheck,
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isSameDay, startOfDay } from "date-fns";
@@ -41,6 +43,19 @@ const DAY_LABELS: Record<number, { short: string; theme: string }> = {
   6: { short: "Сб", theme: "дайджест" },
 };
 
+const CHANNEL_MAP: Record<string, { label: string; icon: typeof Cpu; color: string }> = {
+  "ya-inzhener": {
+    label: "Я-Инженер",
+    icon: Cpu,
+    color: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+  },
+  "bezopasnost": {
+    label: "Безопасность",
+    icon: ShieldCheck,
+    color: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+};
+
 const STATUS_MAP = {
   draft: { label: "Черновик", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
   scheduled: { label: "Запланирован", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
@@ -52,6 +67,7 @@ interface EditState {
   id: number;
   title: string;
   content: string;
+  channel: string;
   currentStatus: PostUpdateStatus;
   currentScheduledAt: string | null;
 }
@@ -114,12 +130,14 @@ export default function Posts() {
     title: string;
     content: string;
     status: string;
+    channel: string;
     scheduledAt: string | null;
   }) => {
     setEditing({
       id: post.id,
       title: post.title,
       content: post.content,
+      channel: post.channel ?? "ya-inzhener",
       currentStatus: post.status as PostUpdateStatus,
       currentScheduledAt: post.scheduledAt,
     });
@@ -141,7 +159,7 @@ export default function Posts() {
     try {
       await updatePost.mutateAsync({
         id: editing.id,
-        data: { title: editing.title, content: editing.content, ...patch },
+        data: { title: editing.title, content: editing.content, channel: editing.channel as "ya-inzhener" | "bezopasnost", ...patch },
       });
       invalidate();
       closeEditor();
@@ -242,6 +260,16 @@ export default function Posts() {
                       >
                         {STATUS_MAP[post.status as keyof typeof STATUS_MAP]?.label ?? post.status}
                       </Badge>
+                      {(() => {
+                        const ch = CHANNEL_MAP[post.channel ?? "ya-inzhener"];
+                        const Icon = ch?.icon ?? Cpu;
+                        return ch ? (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ch.color}`}>
+                            <Icon className="w-3 h-3" />
+                            {ch.label}
+                          </span>
+                        ) : null;
+                      })()}
                       <span className="text-sm text-muted-foreground">
                         {format(new Date(post.createdAt), "d MMMM yyyy", { locale: ru })}
                       </span>
@@ -305,6 +333,29 @@ export default function Posts() {
                       className="resize-none font-mono text-sm leading-relaxed"
                       placeholder="Текст поста..."
                     />
+
+                    {/* Канал */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">Канал:</span>
+                      {(["ya-inzhener", "bezopasnost"] as const).map((ch) => {
+                        const info = CHANNEL_MAP[ch];
+                        const Icon = info.icon;
+                        const isActive = editing.channel === ch;
+                        return (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => setEditing({ ...editing, channel: ch })}
+                            className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                              isActive ? info.color + " font-semibold" : "border-border text-muted-foreground hover:border-primary/50"
+                            }`}
+                          >
+                            <Icon className="w-3 h-3" />
+                            {info.label}
+                          </button>
+                        );
+                      })}
+                    </div>
 
                     {/* Предупреждение о конфликте */}
                     {conflict && (

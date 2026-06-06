@@ -7,6 +7,7 @@ export const postsTable = pgTable("posts", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   status: text("status").notNull().default("draft"),
+  channel: text("channel").notNull().default("ya-inzhener"),
   scheduledAt: timestamp("scheduled_at"),
   feedback: text("feedback"),
   conversationId: integer("conversation_id"),
