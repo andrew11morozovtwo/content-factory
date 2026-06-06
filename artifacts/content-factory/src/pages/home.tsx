@@ -104,7 +104,7 @@ export default function Home() {
 
       const response = await fetch(`/api/openai/conversations/${currentConvId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Channel": selectedChannel },
         body: JSON.stringify({ content: idea }),
       });
 
@@ -155,7 +155,7 @@ export default function Home() {
 
       const response = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Channel": selectedChannel },
         body: JSON.stringify({ content }),
       });
 

@@ -18,6 +18,12 @@ import {
   AGENT_CRITIC,
   AGENT_UPDATER,
   IMPROVE_EDITOR,
+  BEZ_AGENT_CONTROLLER,
+  BEZ_AGENT_ANALYST,
+  BEZ_AGENT_GENERATOR,
+  BEZ_AGENT_CRITIC,
+  BEZ_AGENT_UPDATER,
+  BEZ_IMPROVE_EDITOR,
 } from "./prompts.js";
 
 const router: IRouter = Router();
@@ -115,7 +121,7 @@ async function callAIWithWebSearch(systemPrompt: string, userMessage: string): P
   const urls = (message?.annotations ?? [])
     .filter((a) => a.type === "url_citation" && a.url_citation)
     .map((a) => a.url_citation!.url)
-    .filter((url, i, arr) => arr.indexOf(url) === i); // deduplicate
+    .filter((url, i, arr) => arr.indexOf(url) === i);
 
   logger.info({ foundUrls: urls, annotationsCount: message?.annotations?.length ?? 0 }, "web search controller result");
 
@@ -133,16 +139,50 @@ function stripMarkdown(text: string): string {
   return text.replace(/\*\*/g, "").replace(/(?<!\*)\*(?!\*)/g, "");
 }
 
-/** Гарантирует наличие #ЯИнженер в финальном посте. */
+/** Гарантирует наличие #ЯИнженер в финальном посте (только для ya-inzhener). */
 function ensureYaInzhenerHashtag(text: string): string {
   if (text.includes("#ЯИнженер")) return text;
-  // Найти строку с хэштегами (начинается с #) и добавить туда
   const hashtagLineRegex = /^(#\S+(?:\s+#\S+)*)$/m;
   if (hashtagLineRegex.test(text)) {
     return text.replace(hashtagLineRegex, "$1 #ЯИнженер");
   }
-  // Если строки с хэштегами нет — добавить в конец
   return text.trimEnd() + "\n#ЯИнженер";
+}
+
+/** Читает канал из заголовка запроса. По умолчанию: ya-inzhener. */
+function getChannelFromHeader(req: Parameters<typeof router.post>[1] extends (req: infer R, ...args: unknown[]) => unknown ? R : never): string {
+  const h = req.headers["x-channel"];
+  return typeof h === "string" ? h : "ya-inzhener";
+}
+
+interface ChannelPrompts {
+  controller: string;
+  analyst: string;
+  generator: string;
+  critic: string;
+  updater: string;
+  editor: string;
+}
+
+function getPrompts(channel: string): ChannelPrompts {
+  if (channel === "bezopasnost") {
+    return {
+      controller: BEZ_AGENT_CONTROLLER,
+      analyst: BEZ_AGENT_ANALYST,
+      generator: BEZ_AGENT_GENERATOR,
+      critic: BEZ_AGENT_CRITIC,
+      updater: BEZ_AGENT_UPDATER,
+      editor: BEZ_IMPROVE_EDITOR,
+    };
+  }
+  return {
+    controller: AGENT_CONTROLLER,
+    analyst: AGENT_ANALYST,
+    generator: AGENT_GENERATOR,
+    critic: AGENT_CRITIC,
+    updater: AGENT_UPDATER,
+    editor: IMPROVE_EDITOR,
+  };
 }
 
 
@@ -261,7 +301,11 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   const openai = getProxyClient();
   const userTopic = body.data.content;
   const isFirstMessage = history.filter((m) => m.role === "user").length === 1;
+  const channel = getChannelFromHeader(req);
+  const prompts = getPrompts(channel);
   let fullResponse = "";
+
+  logger.info({ channel, convId, isFirstMessage }, "Processing message");
 
   const sendError = (message: string) => {
     res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
@@ -273,16 +317,14 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   if (isFirstMessage) {
     // ── 5-agent pipeline ─────────────────────────────────────────────────────
 
-    // Step 0: Controller — uses gpt-4o-search-preview for real web search
+    // Step 0: Controller
     res.write(`data: ${JSON.stringify({ step: "Контролёр ищет источники в интернете..." })}\n\n`);
-    const controllerResult = await callAIWithWebSearch(AGENT_CONTROLLER, userTopic);
+    const controllerResult = await callAIWithWebSearch(prompts.controller, userTopic);
     const controllerOutput = controllerResult.content;
     const foundUrls = controllerResult.urls;
 
-    // Extract URL provided by the user in their request (highest priority)
     const userProvidedUrl = extractUserUrl(userTopic);
 
-    // Build urlsBlock: user-provided URL goes first and is marked as mandatory
     let urlsBlock = "";
     if (userProvidedUrl) {
       urlsBlock = `\n\nВАЖНО — URL ОТ ПОЛЬЗОВАТЕЛЯ (ОБЯЗАТЕЛЬНО использовать в строке «Источник:», не заменять другим): ${userProvidedUrl}`;
@@ -295,10 +337,10 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
     logger.info({ userProvidedUrl, foundUrls }, "URL resolution");
 
-    // Step 1: Analyst — also extracts recommended day
+    // Step 1: Analyst — extracts recommended day
     res.write(`data: ${JSON.stringify({ step: "Аналитик выделяет ключевые данные..." })}\n\n`);
     const analystInput = `Запрос пользователя: ${userTopic}\n\nВывод Агента-Контролёра:\n${controllerOutput}${urlsBlock}`;
-    const analystOutput = await callAI(openai, AGENT_ANALYST, analystInput);
+    const analystOutput = await callAI(openai, prompts.analyst, analystInput);
 
     const recommendedDay = parseDayFromAnalyst(analystOutput);
     res.write(`data: ${JSON.stringify({ day: recommendedDay })}\n\n`);
@@ -306,12 +348,12 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     // Step 2: Generator — creates draft post
     res.write(`data: ${JSON.stringify({ step: "Генератор создаёт черновик..." })}\n\n`);
     const generatorInput = `Тема: ${userTopic}\n\nАнализ от Агента-Аналитика:\n${analystOutput}${urlsBlock}`;
-    const generatorOutput = await callAI(openai, AGENT_GENERATOR, generatorInput);
+    const generatorOutput = await callAI(openai, prompts.generator, generatorInput);
 
     // Step 3: Critic — evaluates draft
     res.write(`data: ${JSON.stringify({ step: "Критик оценивает черновик..." })}\n\n`);
     const criticInput = `Оригинальный запрос: ${userTopic}\n\nПост от Агента-Генератора:\n${generatorOutput}`;
-    const criticOutput = await callAI(openai, AGENT_CRITIC, criticInput);
+    const criticOutput = await callAI(openai, prompts.critic, criticInput);
 
     // Step 4: Updater — streams final post
     res.write(`data: ${JSON.stringify({ step: "Финализация поста..." })}\n\n`);
@@ -320,7 +362,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: AGENT_UPDATER },
+        { role: "system", content: prompts.updater },
         { role: "user", content: updaterInput },
       ],
       stream: true,
@@ -345,7 +387,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: IMPROVE_EDITOR },
+        { role: "system", content: prompts.editor },
         ...previousMessages,
       ],
       stream: true,
@@ -362,9 +404,10 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
   // Убираем Markdown-разметку (VK не поддерживает **bold** и т.п.)
   const stripped = stripMarkdown(fullResponse);
-  // Гарантируем наличие #ЯИнженер
-  const corrected = ensureYaInzhenerHashtag(stripped);
-  // Если текст изменился — отправляем финальную исправленную версию целиком
+
+  // Для «Я-Инженера» гарантируем #ЯИнженер; для «Безопасность всегда» — не добавляем
+  const corrected = channel === "ya-inzhener" ? ensureYaInzhenerHashtag(stripped) : stripped;
+
   if (corrected !== fullResponse) {
     res.write(`data: ${JSON.stringify({ corrected })}\n\n`);
   }
