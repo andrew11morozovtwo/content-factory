@@ -39,7 +39,7 @@ router.post("/auto-generate", async (req, res): Promise<void> => {
         status: "scheduled",
         recommendedDay: generated.recommendedDay,
         channel: "ya-inzhener",
-        scheduledAt: new Date(generated.scheduledAt),
+        scheduledAt: new Date(), // немедленная публикация для отладки промптов
       })
       .returning();
 
@@ -80,7 +80,7 @@ router.post("/bez-auto-generate", async (req, res): Promise<void> => {
         status: "scheduled",
         recommendedDay: generated.recommendedDay,
         channel: "bezopasnost",
-        scheduledAt: new Date(generated.scheduledAt),
+        scheduledAt: new Date(), // немедленная публикация для отладки промптов
       })
       .returning();
 
