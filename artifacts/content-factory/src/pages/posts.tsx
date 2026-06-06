@@ -5,6 +5,9 @@ import {
   useUpdatePost,
   getListPostsQueryKey,
   PostUpdateStatus,
+  useGetBezPlan,
+  useUpdateBezPlanDay,
+  getGetBezPlanQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +31,10 @@ import {
   AlertTriangle,
   Cpu,
   ShieldCheck,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Check,
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isSameDay, startOfDay } from "date-fns";
@@ -42,6 +49,8 @@ const DAY_LABELS: Record<number, { short: string; theme: string }> = {
   5: { short: "Пт", theme: "военные технологии" },
   6: { short: "Сб", theme: "дайджест" },
 };
+
+const DAY_SHORT_RU = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 const CHANNEL_MAP: Record<string, { label: string; icon: typeof Cpu; color: string }> = {
   "ya-inzhener": {
@@ -81,6 +90,11 @@ interface Props {
   channel: "ya-inzhener" | "bezopasnost";
 }
 
+function formatShortDate(isoDate: string): string {
+  const parts = isoDate.split("-");
+  return `${parts[2]}.${parts[1]}`;
+}
+
 export default function Posts({ channel }: Props) {
   const { data: posts, isLoading } = useListPosts();
   const deletePost = useDeletePost();
@@ -93,6 +107,21 @@ export default function Posts({ channel }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
+
+  // ── Plan section state ────────────────────────────────────────────────────
+  const [planVisible, setPlanVisible] = useState(true);
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([0]));
+  const [editingPlanDay, setEditingPlanDay] = useState<{ date: string; topic: string } | null>(null);
+  const [planDaySaving, setPlanDaySaving] = useState(false);
+
+  const { data: bezPlan } = useGetBezPlan();
+  const { mutateAsync: updateBezPlanDay } = useUpdateBezPlanDay({
+    mutation: {
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetBezPlanQueryKey() }),
+    },
+  });
+
+  const hasPlan = channel === "bezopasnost" && !!bezPlan?.generatedAt && (bezPlan.weeks?.length ?? 0) > 0;
 
   const newPostHref = channel === "bezopasnost" ? "/bez" : "/";
 
@@ -108,7 +137,6 @@ export default function Posts({ channel }: Props) {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-  // Даты с уже запланированными постами (для календаря)
   const scheduledDates: Date[] = (posts ?? [])
     .filter((p) => p.status === "scheduled" && p.scheduledAt && (p.channel ?? "ya-inzhener") === channel)
     .map((p) => new Date(p.scheduledAt!));
@@ -219,6 +247,42 @@ export default function Posts({ channel }: Props) {
     saveWith({ status: "scheduled", scheduledAt: conflict.date.toISOString() });
   };
 
+  // ── Plan day editing ──────────────────────────────────────────────────────
+  const startEditPlanDay = (date: string, topic: string) => {
+    setEditingPlanDay({ date, topic });
+  };
+
+  const savePlanDay = async () => {
+    if (!editingPlanDay) return;
+    setPlanDaySaving(true);
+    try {
+      await updateBezPlanDay({ data: editingPlanDay });
+      setEditingPlanDay(null);
+    } finally {
+      setPlanDaySaving(false);
+    }
+  };
+
+  const toggleWeek = (wi: number) => {
+    setExpandedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(wi)) {
+        next.delete(wi);
+      } else {
+        next.add(wi);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    if (bezPlan?.weeks) {
+      setExpandedWeeks(new Set(bezPlan.weeks.map((_, i) => i)));
+    }
+  };
+
+  const collapseAll = () => setExpandedWeeks(new Set());
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between gap-4">
@@ -239,13 +303,14 @@ export default function Posts({ channel }: Props) {
         </Link>
       </div>
 
+      {/* ── Список постов ── */}
       <div className="grid gap-4">
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">Загрузка библиотеки...</div>
         ) : filteredPosts.length === 0 ? (
           <Card className="border-dashed">
-            <CardContent className="py-16 text-center text-muted-foreground">
-              <Library className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <CardContent className="py-10 text-center text-muted-foreground">
+              <Library className="w-10 h-10 mx-auto mb-3 opacity-20" />
               <p>Постов не найдено</p>
             </CardContent>
           </Card>
@@ -254,7 +319,6 @@ export default function Posts({ channel }: Props) {
             const isEditingThis = editing?.id === post.id;
             return (
               <Card key={post.id} className="overflow-hidden">
-                {/* ── Заголовок карточки ── */}
                 <div className="flex flex-col sm:flex-row">
                   <div className="p-6 flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -324,7 +388,6 @@ export default function Posts({ channel }: Props) {
                   </div>
                 </div>
 
-                {/* ── Панель редактирования ── */}
                 {isEditingThis && editing && (
                   <div className="border-t bg-muted/10 p-6 space-y-4">
                     <Input
@@ -341,7 +404,6 @@ export default function Posts({ channel }: Props) {
                       placeholder="Текст поста..."
                     />
 
-                    {/* Канал */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground shrink-0">Канал:</span>
                       {(["ya-inzhener", "bezopasnost"] as const).map((ch) => {
@@ -364,7 +426,6 @@ export default function Posts({ channel }: Props) {
                       })}
                     </div>
 
-                    {/* Предупреждение о конфликте */}
                     {conflict && (
                       <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30 p-4">
                         <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
@@ -406,7 +467,6 @@ export default function Posts({ channel }: Props) {
                       </div>
                     )}
 
-                    {/* Кнопки действий */}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         variant="outline"
@@ -479,6 +539,172 @@ export default function Posts({ channel }: Props) {
           })
         )}
       </div>
+
+      {/* ── План публикаций (только для Безопасность, если план создан) ── */}
+      {hasPlan && bezPlan && (
+        <div className="space-y-3">
+          {/* Заголовок раздела */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setPlanVisible((v) => !v)}
+              className="flex items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-foreground transition-colors"
+            >
+              {planVisible ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <FileText className="w-4 h-4 text-amber-500" />
+              План публикаций
+              <span className="text-xs font-normal text-muted-foreground">
+                {bezPlan.weeks?.length ?? 0} нед. · {bezPlan.startDate} — {bezPlan.endDate}
+              </span>
+            </button>
+            {planVisible && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Развернуть все
+                </button>
+                <span className="text-muted-foreground/40">·</span>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Свернуть все
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Недели */}
+          {planVisible && (
+            <div className="space-y-2">
+              {(bezPlan.weeks ?? []).map((week, wi) => {
+                const isExpanded = expandedWeeks.has(wi);
+                return (
+                  <Card key={wi} className="overflow-hidden">
+                    {/* Шапка недели */}
+                    <button
+                      type="button"
+                      onClick={() => toggleWeek(wi)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="text-xs font-mono text-muted-foreground shrink-0">
+                          {formatShortDate(week.weekStart)}–{formatShortDate(week.weekEnd)}
+                        </span>
+                        <span className="text-sm font-medium truncate">{week.theme}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground/60 shrink-0 ml-2">
+                        {week.days.length} дн.
+                      </span>
+                    </button>
+
+                    {/* Дни недели */}
+                    {isExpanded && (
+                      <div className="border-t divide-y">
+                        {week.days.map((day) => {
+                          const dayObj = new Date(`${day.date}T12:00:00`);
+                          const dayName = DAY_SHORT_RU[dayObj.getDay()] ?? "";
+                          const isWeekend = dayObj.getDay() === 0 || dayObj.getDay() === 6;
+                          const isEditingDay = editingPlanDay?.date === day.date;
+
+                          return (
+                            <div
+                              key={day.date}
+                              className={`flex items-start gap-3 px-4 py-2.5 group ${
+                                isWeekend ? "bg-muted/20" : ""
+                              }`}
+                            >
+                              {/* Дата */}
+                              <div className="flex items-center gap-1.5 shrink-0 w-20 pt-0.5">
+                                <span className="text-xs font-mono text-muted-foreground">
+                                  {formatShortDate(day.date)}
+                                </span>
+                                <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${
+                                  isWeekend
+                                    ? "bg-muted text-muted-foreground"
+                                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                }`}>
+                                  {dayName}
+                                </span>
+                              </div>
+
+                              {/* Тема / редактор */}
+                              {isEditingDay ? (
+                                <div className="flex-1 flex items-center gap-2">
+                                  <Input
+                                    value={editingPlanDay.topic}
+                                    onChange={(e) =>
+                                      setEditingPlanDay({ ...editingPlanDay, topic: e.target.value })
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") void savePlanDay();
+                                      if (e.key === "Escape") setEditingPlanDay(null);
+                                    }}
+                                    className="h-7 text-sm"
+                                    autoFocus
+                                    disabled={planDaySaving}
+                                  />
+                                  <Button
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
+                                    onClick={() => void savePlanDay()}
+                                    disabled={planDaySaving}
+                                    title="Сохранить"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 shrink-0 text-muted-foreground"
+                                    onClick={() => setEditingPlanDay(null)}
+                                    disabled={planDaySaving}
+                                    title="Отмена"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                                  <p className={`text-sm truncate ${isWeekend ? "text-muted-foreground/60 italic" : "text-foreground/80"}`}>
+                                    {day.topic}
+                                  </p>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                                    onClick={() => startEditPlanDay(day.date, day.topic)}
+                                    title="Редактировать тему"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

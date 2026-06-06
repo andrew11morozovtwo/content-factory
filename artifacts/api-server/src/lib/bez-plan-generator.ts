@@ -105,6 +105,10 @@ async function getRecentBezTopics(): Promise<string[]> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+export async function saveBezPlan(plan: BezPlan): Promise<void> {
+  await setSetting("bez_publication_plan", JSON.stringify(plan));
+}
+
 export async function getBezPlan(): Promise<BezPlan | null> {
   const raw = await getSetting("bez_publication_plan");
   if (!raw) return null;

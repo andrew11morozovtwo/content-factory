@@ -11,6 +11,7 @@ export * from "./autopilotInput";
 export * from "./autopilotStatus";
 export * from "./bezPlan";
 export * from "./bezPlanDay";
+export * from "./bezPlanDayUpdate";
 export * from "./bezPlanWeek";
 export * from "./healthStatus";
 export * from "./openaiConversation";

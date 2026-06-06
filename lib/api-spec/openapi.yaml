@@ -244,6 +244,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OpenaiError"
+    patch:
+      operationId: updateBezPlanDay
+      tags: [posts]
+      summary: Update a single day topic in the publication plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BezPlanDayUpdate"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BezPlan"
+        "404":
+          description: Plan or day not found
 
   /bez-autopilot:
     get:
@@ -637,6 +656,18 @@ components:
           type: boolean
       required:
         - enabled
+
+    BezPlanDayUpdate:
+      type: object
+      properties:
+        date:
+          type: string
+          description: ISO date YYYY-MM-DD
+        topic:
+          type: string
+      required:
+        - date
+        - topic
 
     BezPlanDay:
       type: object

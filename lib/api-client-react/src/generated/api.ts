@@ -21,6 +21,7 @@ import type {
   AutopilotInput,
   AutopilotStatus,
   BezPlan,
+  BezPlanDayUpdate,
   HealthStatus,
   OpenaiConversation,
   OpenaiConversationInput,
@@ -1064,6 +1065,92 @@ export const useGenerateBezPlan = <
   TContext
 > => {
   return useMutation(getGenerateBezPlanMutationOptions(options));
+};
+
+/**
+ * @summary Update a single day topic in the publication plan
+ */
+export const getUpdateBezPlanDayUrl = () => {
+  return `/api/bez-plan`;
+};
+
+export const updateBezPlanDay = async (
+  bezPlanDayUpdate: BezPlanDayUpdate,
+  options?: RequestInit,
+): Promise<BezPlan> => {
+  return customFetch<BezPlan>(getUpdateBezPlanDayUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bezPlanDayUpdate),
+  });
+};
+
+export const getUpdateBezPlanDayMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBezPlanDay>>,
+    TError,
+    { data: BodyType<BezPlanDayUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBezPlanDay>>,
+  TError,
+  { data: BodyType<BezPlanDayUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateBezPlanDay"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBezPlanDay>>,
+    { data: BodyType<BezPlanDayUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateBezPlanDay(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBezPlanDayMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBezPlanDay>>
+>;
+export type UpdateBezPlanDayMutationBody = BodyType<BezPlanDayUpdate>;
+export type UpdateBezPlanDayMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a single day topic in the publication plan
+ */
+export const useUpdateBezPlanDay = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBezPlanDay>>,
+    TError,
+    { data: BodyType<BezPlanDayUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBezPlanDay>>,
+  TError,
+  { data: BodyType<BezPlanDayUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateBezPlanDayMutationOptions(options));
 };
 
 /**

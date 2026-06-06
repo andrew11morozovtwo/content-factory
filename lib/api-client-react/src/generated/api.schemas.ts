@@ -190,6 +190,12 @@ export interface AutopilotInput {
   enabled: boolean;
 }
 
+export interface BezPlanDayUpdate {
+  /** ISO date YYYY-MM-DD */
+  date: string;
+  topic: string;
+}
+
 export interface BezPlanDay {
   /** ISO date YYYY-MM-DD */
   date: string;
