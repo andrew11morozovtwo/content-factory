@@ -280,7 +280,11 @@ export default function Home({ channel }: Props) {
           channel,
         },
       });
-      await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
+      await fetch(`/api/posts/${post.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: isBez ? imageUrl : null }),
+      });
       setLocation(postsPath);
 
       // ORIGINAL: планирование на ближайший свободный слот

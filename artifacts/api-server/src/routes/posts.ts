@@ -122,9 +122,11 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
 
   const channel = post.channel ?? "ya-inzhener";
 
+  const { imageUrl } = (req.body ?? {}) as { imageUrl?: string | null };
+
   let vkPostId: number;
   try {
-    vkPostId = await publishPostToVk(post.id, post.content, channel);
+    vkPostId = await publishPostToVk(post.id, post.content, channel, imageUrl);
   } catch (err) {
     req.log.error({ err, postId: post.id, channel }, "Immediate VK publish failed");
     res.status(502).json({ error: "VK publish failed" });
