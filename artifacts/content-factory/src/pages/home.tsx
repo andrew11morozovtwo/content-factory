@@ -269,19 +269,34 @@ export default function Home({ channel }: Props) {
   const handleScheduleNow = async () => {
     if (!aiResponse) return;
     try {
-      const scheduledAt = getNextFreeDateForDay(selectedDay);
-      await createPost.mutateAsync({
+      // DEBUG: немедленная публикация (без планировщика)
+      const post = await createPost.mutateAsync({
         data: {
           title: idea.slice(0, 50) || "Новый пост",
           content: aiResponse,
-          status: "scheduled",
+          status: "draft",
           conversationId,
           recommendedDay: selectedDay,
-          scheduledAt: scheduledAt.toISOString(),
           channel,
         },
       });
-      setLocation(calendarPath);
+      await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
+      setLocation(postsPath);
+
+      // ORIGINAL: планирование на ближайший свободный слот
+      // const scheduledAt = getNextFreeDateForDay(selectedDay);
+      // await createPost.mutateAsync({
+      //   data: {
+      //     title: idea.slice(0, 50) || "Новый пост",
+      //     content: aiResponse,
+      //     status: "scheduled",
+      //     conversationId,
+      //     recommendedDay: selectedDay,
+      //     scheduledAt: scheduledAt.toISOString(),
+      //     channel,
+      //   },
+      // });
+      // setLocation(calendarPath);
     } catch (err) {
       console.error(err);
     }
