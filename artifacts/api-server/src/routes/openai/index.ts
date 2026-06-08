@@ -443,7 +443,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 });
 
 // Separate endpoint: generate illustration image from a prompt (not in SSE pipeline)
-router.post("/generate-image", async (req, res) => {
+router.post("/openai/generate-image", async (req, res) => {
   const { prompt } = req.body as { prompt?: string };
   if (!prompt || typeof prompt !== "string") {
     res.status(400).json({ error: "prompt is required" });
