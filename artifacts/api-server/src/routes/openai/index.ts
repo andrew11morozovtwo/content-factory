@@ -419,30 +419,12 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     content: corrected,
   });
 
-  // Step 5+6 (BEZ only): Illustration prompt → image generation
+  // Step 5 (BEZ only): Illustration prompt agent
   if (channel === "bezopasnost") {
     res.write(`data: ${JSON.stringify({ step: "Иллюстратор создаёт промпт для картинки..." })}\n\n`);
     try {
       const imagePromptText = await callAI(openai, BEZ_AGENT_ILLUSTRATOR, `Пост:\n${corrected}`);
       res.write(`data: ${JSON.stringify({ imagePrompt: imagePromptText })}\n\n`);
-
-      // Step 6: generate image from prompt
-      res.write(`data: ${JSON.stringify({ step: "Художник рисует иллюстрацию..." })}\n\n`);
-      try {
-        const imgResult = await openai.images.generate({
-          model: "gpt-image-2",
-          prompt: imagePromptText,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any) as { data: Array<{ url?: string; b64_json?: string }> };
-        const imageUrl = imgResult.data[0]?.url;
-        const imageB64 = imgResult.data[0]?.b64_json;
-        const imagePayload = imageUrl ?? (imageB64 ? `data:image/png;base64,${imageB64}` : null);
-        if (imagePayload) {
-          res.write(`data: ${JSON.stringify({ imageUrl: imagePayload })}\n\n`);
-        }
-      } catch (artistErr) {
-        logger.warn({ artistErr }, "Artist agent (image gen) failed — skipping");
-      }
     } catch (illustratorErr) {
       logger.warn({ illustratorErr }, "Illustrator agent failed — skipping");
     }
@@ -457,6 +439,34 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
       ? "Недостаточно баланса на ProxyAPI. Пополните счёт на proxyapi.ru и попробуйте снова."
       : "Ошибка при генерации. Попробуйте ещё раз.";
     sendError(msg);
+  }
+});
+
+// Separate endpoint: generate illustration image from a prompt (not in SSE pipeline)
+router.post("/generate-image", async (req, res) => {
+  const { prompt } = req.body as { prompt?: string };
+  if (!prompt || typeof prompt !== "string") {
+    res.status(400).json({ error: "prompt is required" });
+    return;
+  }
+
+  try {
+    const client = getProxyClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const imgResult = await client.images.generate({ model: "gpt-image-2", prompt } as any) as {
+      data: Array<{ url?: string; b64_json?: string }>;
+    };
+    const url = imgResult.data[0]?.url;
+    const b64 = imgResult.data[0]?.b64_json;
+    const imageUrl = url ?? (b64 ? `data:image/png;base64,${b64}` : null);
+    if (!imageUrl) {
+      res.status(500).json({ error: "No image returned from model" });
+      return;
+    }
+    res.json({ imageUrl });
+  } catch (err: unknown) {
+    req.log.error({ err }, "Image generation failed");
+    res.status(500).json({ error: "Image generation failed" });
   }
 });
 

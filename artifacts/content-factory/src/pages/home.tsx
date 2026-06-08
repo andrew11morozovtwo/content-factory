@@ -33,6 +33,8 @@ export default function Home({ channel }: Props) {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [imagePrompt, setImagePrompt] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
@@ -56,7 +58,6 @@ export default function Home({ channel }: Props) {
     onError?: (msg: string) => void,
     onCorrected?: (text: string) => void,
     onImagePrompt?: (prompt: string) => void,
-    onImageUrl?: (url: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -78,13 +79,32 @@ export default function Home({ channel }: Props) {
           if (parsed.content) onContent(parsed.content);
           if (parsed.corrected !== undefined && onCorrected) onCorrected(parsed.corrected);
           if (parsed.imagePrompt && onImagePrompt) onImagePrompt(parsed.imagePrompt as string);
-          if (parsed.imageUrl && onImageUrl) onImageUrl(parsed.imageUrl as string);
           if (parsed.error && onError) onError(parsed.error);
           if (parsed.done) { finished = true; }
         } catch {
           // skip malformed lines
         }
       }
+    }
+  };
+
+  const generateImage = async (prompt: string) => {
+    setIsGeneratingImage(true);
+    setImageError(null);
+    try {
+      const res = await fetch("/api/openai/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { imageUrl?: string };
+      if (data.imageUrl) setImageUrl(data.imageUrl);
+      else setImageError("Картинка не получена от модели.");
+    } catch {
+      setImageError("Не удалось сгенерировать иллюстрацию.");
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -97,10 +117,13 @@ export default function Home({ channel }: Props) {
     setErrorMessage(null);
     setImagePrompt(null);
     setImageUrl(null);
+    setImageError(null);
     setCopied(false);
     setSelectedDay(todayIndex);
     setRecommendedDay(null);
     setUserPickedDay(false);
+
+    let capturedPrompt: string | null = null;
 
     try {
       let currentConvId = conversationId;
@@ -134,8 +157,7 @@ export default function Home({ channel }: Props) {
         (step) => setCurrentStep(step),
         (msg) => setErrorMessage(msg),
         (text) => setAiResponse(text),
-        (prompt) => setImagePrompt(prompt),
-        (url) => setImageUrl(url),
+        (prompt) => { setImagePrompt(prompt); capturedPrompt = prompt; },
       );
     } catch (error) {
       console.error(error);
@@ -143,6 +165,10 @@ export default function Home({ channel }: Props) {
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
+    }
+
+    if (isBez && capturedPrompt) {
+      void generateImage(capturedPrompt);
     }
   };
 
@@ -154,7 +180,10 @@ export default function Home({ channel }: Props) {
     setErrorMessage(null);
     setImagePrompt(null);
     setImageUrl(null);
+    setImageError(null);
     setCopied(false);
+
+    let capturedPrompt: string | null = null;
 
     try {
       const dayNote = DAYS.find((d) => d.index === selectedDay)?.label ?? "";
@@ -178,8 +207,7 @@ export default function Home({ channel }: Props) {
         (step) => setCurrentStep(step),
         (msg) => setErrorMessage(msg),
         (text) => setAiResponse(text),
-        (prompt) => setImagePrompt(prompt),
-        (url) => setImageUrl(url),
+        (prompt) => { setImagePrompt(prompt); capturedPrompt = prompt; },
       );
 
       setFeedback("");
@@ -189,6 +217,10 @@ export default function Home({ channel }: Props) {
     } finally {
       setIsGenerating(false);
       setCurrentStep(null);
+    }
+
+    if (isBez && capturedPrompt) {
+      void generateImage(capturedPrompt);
     }
   };
 
@@ -446,35 +478,35 @@ export default function Home({ channel }: Props) {
         </Card>
 
         {/* Карточка с готовой иллюстрацией — только для Безопасность всегда */}
-        {isBez && imageUrl && !isGenerating && (
+        {isBez && !isGenerating && (isGeneratingImage || imageUrl || imageError) && (
           <Card className="border-violet-200/60 dark:border-violet-800/40 shadow-sm">
             <CardHeader className="bg-violet-50/50 dark:bg-violet-950/20 pb-3 border-b border-violet-200/60 dark:border-violet-800/40 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium text-violet-700 dark:text-violet-400 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
                 Иллюстрация
               </CardTitle>
-              <a
-                href={imageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download="illustration.png"
-              >
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Открыть / скачать
-                </Button>
-              </a>
+              {imageUrl && (
+                <a href={imageUrl} target="_blank" rel="noopener noreferrer" download="illustration.png">
+                  <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                    <Download className="w-3.5 h-3.5" />
+                    Открыть / скачать
+                  </Button>
+                </a>
+              )}
             </CardHeader>
             <CardContent className="p-4">
-              <img
-                src={imageUrl}
-                alt="Иллюстрация к посту"
-                className="w-full rounded-md"
-              />
+              {isGeneratingImage && (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Художник рисует иллюстрацию...
+                </div>
+              )}
+              {imageError && !isGeneratingImage && (
+                <p className="text-sm text-destructive text-center py-4">{imageError}</p>
+              )}
+              {imageUrl && !isGeneratingImage && (
+                <img src={imageUrl} alt="Иллюстрация к посту" className="w-full rounded-md" />
+              )}
             </CardContent>
           </Card>
         )}
