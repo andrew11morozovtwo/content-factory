@@ -419,12 +419,29 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     content: corrected,
   });
 
-  // Step 5 (BEZ only): Illustration prompt agent
+  // Step 5+6 (BEZ only): Illustration prompt → image generation
   if (channel === "bezopasnost") {
     res.write(`data: ${JSON.stringify({ step: "Иллюстратор создаёт промпт для картинки..." })}\n\n`);
     try {
       const imagePromptText = await callAI(openai, BEZ_AGENT_ILLUSTRATOR, `Пост:\n${corrected}`);
       res.write(`data: ${JSON.stringify({ imagePrompt: imagePromptText })}\n\n`);
+
+      // Step 6: generate image from prompt
+      res.write(`data: ${JSON.stringify({ step: "Художник рисует иллюстрацию..." })}\n\n`);
+      try {
+        const imgResult = await openai.images.generate({
+          model: "gpt-image-2",
+          prompt: imagePromptText,
+          response_format: "b64_json",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any) as { data: Array<{ b64_json?: string }> };
+        const imageData = imgResult.data[0]?.b64_json;
+        if (imageData) {
+          res.write(`data: ${JSON.stringify({ imageData })}\n\n`);
+        }
+      } catch (artistErr) {
+        logger.warn({ artistErr }, "Artist agent (image gen) failed — skipping");
+      }
     } catch (illustratorErr) {
       logger.warn({ illustratorErr }, "Illustrator agent failed — skipping");
     }
