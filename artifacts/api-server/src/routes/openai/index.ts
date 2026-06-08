@@ -432,12 +432,13 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
         const imgResult = await openai.images.generate({
           model: "gpt-image-2",
           prompt: imagePromptText,
-          response_format: "b64_json",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any) as { data: Array<{ b64_json?: string }> };
-        const imageData = imgResult.data[0]?.b64_json;
-        if (imageData) {
-          res.write(`data: ${JSON.stringify({ imageData })}\n\n`);
+        } as any) as { data: Array<{ url?: string; b64_json?: string }> };
+        const imageUrl = imgResult.data[0]?.url;
+        const imageB64 = imgResult.data[0]?.b64_json;
+        const imagePayload = imageUrl ?? (imageB64 ? `data:image/png;base64,${imageB64}` : null);
+        if (imagePayload) {
+          res.write(`data: ${JSON.stringify({ imageUrl: imagePayload })}\n\n`);
         }
       } catch (artistErr) {
         logger.warn({ artistErr }, "Artist agent (image gen) failed — skipping");

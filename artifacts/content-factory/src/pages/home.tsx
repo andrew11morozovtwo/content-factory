@@ -32,7 +32,7 @@ export default function Home({ channel }: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [imagePrompt, setImagePrompt] = useState<string | null>(null);
-  const [imageData, setImageData] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
@@ -56,7 +56,7 @@ export default function Home({ channel }: Props) {
     onError?: (msg: string) => void,
     onCorrected?: (text: string) => void,
     onImagePrompt?: (prompt: string) => void,
-    onImageData?: (data: string) => void,
+    onImageUrl?: (url: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -78,7 +78,7 @@ export default function Home({ channel }: Props) {
           if (parsed.content) onContent(parsed.content);
           if (parsed.corrected !== undefined && onCorrected) onCorrected(parsed.corrected);
           if (parsed.imagePrompt && onImagePrompt) onImagePrompt(parsed.imagePrompt as string);
-          if (parsed.imageData && onImageData) onImageData(parsed.imageData as string);
+          if (parsed.imageUrl && onImageUrl) onImageUrl(parsed.imageUrl as string);
           if (parsed.error && onError) onError(parsed.error);
           if (parsed.done) { finished = true; }
         } catch {
@@ -96,7 +96,7 @@ export default function Home({ channel }: Props) {
     setCurrentStep(null);
     setErrorMessage(null);
     setImagePrompt(null);
-    setImageData(null);
+    setImageUrl(null);
     setCopied(false);
     setSelectedDay(todayIndex);
     setRecommendedDay(null);
@@ -135,7 +135,7 @@ export default function Home({ channel }: Props) {
         (msg) => setErrorMessage(msg),
         (text) => setAiResponse(text),
         (prompt) => setImagePrompt(prompt),
-        (data) => setImageData(data),
+        (url) => setImageUrl(url),
       );
     } catch (error) {
       console.error(error);
@@ -153,7 +153,7 @@ export default function Home({ channel }: Props) {
     setCurrentStep(null);
     setErrorMessage(null);
     setImagePrompt(null);
-    setImageData(null);
+    setImageUrl(null);
     setCopied(false);
 
     try {
@@ -179,7 +179,7 @@ export default function Home({ channel }: Props) {
         (msg) => setErrorMessage(msg),
         (text) => setAiResponse(text),
         (prompt) => setImagePrompt(prompt),
-        (data) => setImageData(data),
+        (url) => setImageUrl(url),
       );
 
       setFeedback("");
@@ -446,31 +446,32 @@ export default function Home({ channel }: Props) {
         </Card>
 
         {/* Карточка с готовой иллюстрацией — только для Безопасность всегда */}
-        {isBez && imageData && !isGenerating && (
+        {isBez && imageUrl && !isGenerating && (
           <Card className="border-violet-200/60 dark:border-violet-800/40 shadow-sm">
             <CardHeader className="bg-violet-50/50 dark:bg-violet-950/20 pb-3 border-b border-violet-200/60 dark:border-violet-800/40 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium text-violet-700 dark:text-violet-400 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
                 Иллюстрация
               </CardTitle>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = `data:image/png;base64,${imageData}`;
-                  a.download = "illustration.png";
-                  a.click();
-                }}
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download="illustration.png"
               >
-                <Download className="w-3.5 h-3.5" />
-                Скачать PNG
-              </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Открыть / скачать
+                </Button>
+              </a>
             </CardHeader>
             <CardContent className="p-4">
               <img
-                src={`data:image/png;base64,${imageData}`}
+                src={imageUrl}
                 alt="Иллюстрация к посту"
                 className="w-full rounded-md"
               />
