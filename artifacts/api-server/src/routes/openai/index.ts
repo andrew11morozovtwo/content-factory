@@ -23,6 +23,7 @@ import {
   BEZ_AGENT_GENERATOR,
   BEZ_AGENT_CRITIC,
   BEZ_AGENT_UPDATER,
+  BEZ_AGENT_ILLUSTRATOR,
   BEZ_IMPROVE_EDITOR,
 } from "./prompts.js";
 
@@ -417,6 +418,17 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     role: "assistant",
     content: corrected,
   });
+
+  // Step 5 (BEZ only): Illustration prompt agent
+  if (channel === "bezopasnost") {
+    res.write(`data: ${JSON.stringify({ step: "Иллюстратор создаёт промпт для картинки..." })}\n\n`);
+    try {
+      const imagePromptText = await callAI(openai, BEZ_AGENT_ILLUSTRATOR, `Пост:\n${corrected}`);
+      res.write(`data: ${JSON.stringify({ imagePrompt: imagePromptText })}\n\n`);
+    } catch (illustratorErr) {
+      logger.warn({ illustratorErr }, "Illustrator agent failed — skipping");
+    }
+  }
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
   res.end();

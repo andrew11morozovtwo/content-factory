@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateOpenaiConversation, useCreatePost, useListPosts } from "@workspace/api-client-react";
 import { isSameDay } from "date-fns";
-import { Bot, Send, Save, ArrowRight, Loader2, Calendar } from "lucide-react";
+import { Bot, Send, Save, ArrowRight, Loader2, Calendar, Wand2, Copy, Check as CheckIcon } from "lucide-react";
 
 const DAYS = [
   { label: "Пн", index: 1 },
@@ -31,6 +31,8 @@ export default function Home({ channel }: Props) {
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const [imagePrompt, setImagePrompt] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
   const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
@@ -52,6 +54,7 @@ export default function Home({ channel }: Props) {
     onStep?: (step: string) => void,
     onError?: (msg: string) => void,
     onCorrected?: (text: string) => void,
+    onImagePrompt?: (prompt: string) => void,
   ) => {
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -72,6 +75,7 @@ export default function Home({ channel }: Props) {
           if (parsed.day !== undefined && onDay) onDay(parsed.day);
           if (parsed.content) onContent(parsed.content);
           if (parsed.corrected !== undefined && onCorrected) onCorrected(parsed.corrected);
+          if (parsed.imagePrompt && onImagePrompt) onImagePrompt(parsed.imagePrompt as string);
           if (parsed.error && onError) onError(parsed.error);
           if (parsed.done) { finished = true; }
         } catch {
@@ -88,6 +92,8 @@ export default function Home({ channel }: Props) {
     setAiResponse("");
     setCurrentStep(null);
     setErrorMessage(null);
+    setImagePrompt(null);
+    setCopied(false);
     setSelectedDay(todayIndex);
     setRecommendedDay(null);
     setUserPickedDay(false);
@@ -121,15 +127,10 @@ export default function Home({ channel }: Props) {
             return picked;
           });
         },
-        (step) => {
-          setCurrentStep(step);
-        },
-        (msg) => {
-          setErrorMessage(msg);
-        },
-        (text) => {
-          setAiResponse(text);
-        },
+        (step) => setCurrentStep(step),
+        (msg) => setErrorMessage(msg),
+        (text) => setAiResponse(text),
+        (prompt) => setImagePrompt(prompt),
       );
     } catch (error) {
       console.error(error);
@@ -146,6 +147,8 @@ export default function Home({ channel }: Props) {
     setIsGenerating(true);
     setCurrentStep(null);
     setErrorMessage(null);
+    setImagePrompt(null);
+    setCopied(false);
 
     try {
       const dayNote = DAYS.find((d) => d.index === selectedDay)?.label ?? "";
@@ -169,6 +172,7 @@ export default function Home({ channel }: Props) {
         (step) => setCurrentStep(step),
         (msg) => setErrorMessage(msg),
         (text) => setAiResponse(text),
+        (prompt) => setImagePrompt(prompt),
       );
 
       setFeedback("");
@@ -373,7 +377,7 @@ export default function Home({ channel }: Props) {
       </div>
 
       {/* RIGHT COLUMN */}
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-4">
         <Card className="flex-1 flex flex-col border-border/50 shadow-sm">
           <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-sm font-medium text-muted-foreground shrink-0">
@@ -433,6 +437,39 @@ export default function Home({ channel }: Props) {
             )}
           </CardContent>
         </Card>
+
+        {/* Карточка промпта для иллюстрации — только для Безопасность всегда */}
+        {isBez && imagePrompt && !isGenerating && (
+          <Card className="border-amber-200/60 dark:border-amber-800/40 shadow-sm">
+            <CardHeader className="bg-amber-50/50 dark:bg-amber-950/20 pb-3 border-b border-amber-200/60 dark:border-amber-800/40 flex flex-row items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <Wand2 className="w-4 h-4" />
+                Промпт для иллюстрации
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  void navigator.clipboard.writeText(imagePrompt);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? (
+                  <><CheckIcon className="w-3.5 h-3.5 text-green-500" />Скопировано</>
+                ) : (
+                  <><Copy className="w-3.5 h-3.5" />Скопировать</>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-4">
+              <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 rounded-md p-3 select-all">
+                {imagePrompt}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
