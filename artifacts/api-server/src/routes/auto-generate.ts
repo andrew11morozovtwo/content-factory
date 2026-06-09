@@ -8,6 +8,7 @@ import {
   generateBezPost,
   markHashesUsed,
 } from "../lib/auto-generator.js";
+import { buildIllustrationPrompt, generateIllustration } from "../lib/image-generator.js";
 
 const router: IRouter = Router();
 
@@ -88,6 +89,21 @@ router.post("/bez-auto-generate", async (req, res): Promise<void> => {
       { postId: post.id, scheduledAt: generated.scheduledAt },
       "BEZ Auto-generated post saved",
     );
+
+    // Generate illustration asynchronously — save to DB, don't block the response
+    (async () => {
+      try {
+        const imgPrompt = await buildIllustrationPrompt(generated.content);
+        const illustrationUrl = await generateIllustration(imgPrompt);
+        await db
+          .update(postsTable)
+          .set({ illustrationUrl, updatedAt: new Date() })
+          .where(eq(postsTable.id, post.id));
+        req.log.info({ postId: post.id }, "BEZ illustration saved to post");
+      } catch (imgErr) {
+        req.log.warn({ imgErr, postId: post.id }, "BEZ illustration generation failed — post saved without image");
+      }
+    })();
 
     res.status(201).json(GetPostResponse.parse(post));
   } catch (err) {
