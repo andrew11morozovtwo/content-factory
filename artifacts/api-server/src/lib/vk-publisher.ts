@@ -12,10 +12,14 @@ async function uploadPhotoForWall(
   token: string,
   numericGroupId: string,
 ): Promise<string> {
-  // photos.* methods require a USER token — group tokens get error 27.
-  // Always use VK_ACCESS_TOKEN (personal token) for the upload steps;
-  // the caller uses the channel-specific token only for wall.post.
-  const userToken = process.env["VK_ACCESS_TOKEN"] ?? token;
+  // photos.* methods require a USER token — group tokens (VK_ACCESS_TOKEN, VK2_ACCESS_TOKEN) get error 27.
+  // VK_USER_TOKEN must be a personal user token with photos+wall+offline scope.
+  const userToken = process.env["VK_USER_TOKEN"];
+  if (!userToken) {
+    throw new Error(
+      "VK_USER_TOKEN не задан. Получи пользовательский токен с правами photos,wall,offline на vkhost.github.io и добавь в секреты.",
+    );
+  }
 
   // Step 1: get upload server URL
   const uploadServerRes = await fetch(
