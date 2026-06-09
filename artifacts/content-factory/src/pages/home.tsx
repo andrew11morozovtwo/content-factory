@@ -167,9 +167,9 @@ export default function Home({ channel }: Props) {
       setCurrentStep(null);
     }
 
-    // if (isBez && capturedPrompt) {
-    //   void generateImage(capturedPrompt);
-    // }
+    if (isBez && capturedPrompt) {
+      void generateImage(capturedPrompt);
+    }
   };
 
   const handleImprove = async () => {
@@ -219,9 +219,9 @@ export default function Home({ channel }: Props) {
       setCurrentStep(null);
     }
 
-    // if (isBez && capturedPrompt) {
-    //   void generateImage(capturedPrompt);
-    // }
+    if (isBez && capturedPrompt) {
+      void generateImage(capturedPrompt);
+    }
   };
 
   const occupiedDates: Date[] = (posts ?? [])
@@ -270,35 +270,35 @@ export default function Home({ channel }: Props) {
     if (!aiResponse) return;
     try {
       // DEBUG: немедленная публикация (без планировщика)
-      // const post = await createPost.mutateAsync({
-      //   data: {
-      //     title: idea.slice(0, 50) || "Новый пост",
-      //     content: aiResponse,
-      //     status: "draft",
-      //     conversationId,
-      //     recommendedDay: selectedDay,
-      //     channel,
-      //     // @ts-expect-error illustrationUrl not in generated OpenAPI type — stored in DB at creation
-      //     illustrationUrl: isBez ? imageUrl : null,
-      //   },
-      // });
-      // await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
-      // setLocation(postsPath);
-
-      // ORIGINAL: планирование на ближайший свободный слот
-      const scheduledAt = getNextFreeDateForDay(selectedDay);
-      await createPost.mutateAsync({
+      const post = await createPost.mutateAsync({
         data: {
           title: idea.slice(0, 50) || "Новый пост",
           content: aiResponse,
-          status: "scheduled",
+          status: "draft",
           conversationId,
           recommendedDay: selectedDay,
-          scheduledAt: scheduledAt.toISOString(),
           channel,
+          // @ts-expect-error illustrationUrl not in generated OpenAPI type — stored in DB at creation
+          illustrationUrl: isBez ? imageUrl : null,
         },
       });
-      setLocation(calendarPath);
+      await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
+      setLocation(postsPath);
+
+      // ORIGINAL: планирование на ближайший свободный слот
+      // const scheduledAt = getNextFreeDateForDay(selectedDay);
+      // await createPost.mutateAsync({
+      //   data: {
+      //     title: idea.slice(0, 50) || "Новый пост",
+      //     content: aiResponse,
+      //     status: "scheduled",
+      //     conversationId,
+      //     recommendedDay: selectedDay,
+      //     scheduledAt: scheduledAt.toISOString(),
+      //     channel,
+      //   },
+      // });
+      // setLocation(calendarPath);
     } catch (err) {
       console.error(err);
     }
