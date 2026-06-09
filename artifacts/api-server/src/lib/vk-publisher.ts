@@ -12,9 +12,14 @@ async function uploadPhotoForWall(
   token: string,
   numericGroupId: string,
 ): Promise<string> {
+  // photos.* methods require a USER token — group tokens get error 27.
+  // Always use VK_ACCESS_TOKEN (personal token) for the upload steps;
+  // the caller uses the channel-specific token only for wall.post.
+  const userToken = process.env["VK_ACCESS_TOKEN"] ?? token;
+
   // Step 1: get upload server URL
   const uploadServerRes = await fetch(
-    `https://api.vk.com/method/photos.getWallUploadServer?group_id=${numericGroupId}&access_token=${token}&v=${VK_API_VERSION}`,
+    `https://api.vk.com/method/photos.getWallUploadServer?group_id=${numericGroupId}&access_token=${userToken}&v=${VK_API_VERSION}`,
     { method: "POST" },
   );
   const uploadServerData = await uploadServerRes.json() as {
@@ -42,13 +47,13 @@ async function uploadPhotoForWall(
   const uploadRes = await fetch(uploadUrl, { method: "POST", body: form });
   const uploadData = await uploadRes.json() as { server: number; photo: string; hash: string };
 
-  // Step 4: save the photo
+  // Step 4: save the photo (also requires user token)
   const saveParams = new URLSearchParams({
     group_id: numericGroupId,
     server: String(uploadData.server),
     photo: uploadData.photo,
     hash: uploadData.hash,
-    access_token: token,
+    access_token: userToken,
     v: VK_API_VERSION,
   });
   const saveRes = await fetch(`https://api.vk.com/method/photos.saveWallPhoto?${saveParams.toString()}`, { method: "POST" });
