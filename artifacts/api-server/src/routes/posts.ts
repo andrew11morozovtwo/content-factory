@@ -152,6 +152,34 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
   res.json(GetPostResponse.parse(updated));
 });
 
+router.get("/posts/:id/illustration", async (req, res): Promise<void> => {
+  const id = Number(req.params["id"]);
+  if (isNaN(id)) {
+    res.status(400).send("Invalid post ID");
+    return;
+  }
+
+  const [post] = await db
+    .select({ illustrationUrl: postsTable.illustrationUrl })
+    .from(postsTable)
+    .where(eq(postsTable.id, id));
+
+  if (!post?.illustrationUrl) {
+    res.status(404).send("Illustration not found");
+    return;
+  }
+
+  const base64 = post.illustrationUrl.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64, "base64");
+
+  res.set({
+    "Content-Type": "image/png",
+    "Content-Length": String(buffer.length),
+    "Cache-Control": "public, max-age=86400",
+  });
+  res.send(buffer);
+});
+
 router.delete("/posts/:id", async (req, res): Promise<void> => {
   const params = DeletePostParams.safeParse(req.params);
   if (!params.success) {

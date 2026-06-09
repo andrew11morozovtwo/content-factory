@@ -7,69 +7,20 @@ const VK_API_VERSION = "5.131";
 const VK_API_URL = "https://api.vk.com/method/wall.post";
 const POLL_INTERVAL_MS = 60_000;
 
-async function uploadPhotoForWall(
-  imageUrl: string,
-  token: string,
-  numericGroupId: string,
-): Promise<string> {
-  // photos.* methods require a USER token — group tokens (VK_ACCESS_TOKEN, VK2_ACCESS_TOKEN) get error 27.
-  // VK_USER_TOKEN must be a personal user token with photos+wall+offline scope.
-  const userToken = process.env["VK_USER_TOKEN"];
-  if (!userToken) {
-    throw new Error(
-      "VK_USER_TOKEN не задан. Получи пользовательский токен с правами photos,wall,offline на vkhost.github.io и добавь в секреты.",
-    );
+/**
+ * Returns the public base URL of this app (e.g. https://content-factory-xxx.replit.app).
+ * Used to build illustration links appended to VK posts.
+ * Prefers the production domain from REPLIT_DOMAINS; falls back to REPLIT_DEV_DOMAIN.
+ */
+function getPublicBaseUrl(): string | null {
+  const domains = process.env["REPLIT_DOMAINS"];
+  if (domains) {
+    const first = domains.split(",")[0]?.trim();
+    if (first) return `https://${first}`;
   }
-
-  // Step 1: get upload server URL
-  const uploadServerRes = await fetch(
-    `https://api.vk.com/method/photos.getWallUploadServer?group_id=${numericGroupId}&access_token=${userToken}&v=${VK_API_VERSION}`,
-    { method: "POST" },
-  );
-  const uploadServerData = await uploadServerRes.json() as {
-    response?: { upload_url: string };
-    error?: { error_code: number; error_msg: string };
-  };
-  if (uploadServerData.error) {
-    throw new Error(`VK getWallUploadServer error ${uploadServerData.error.error_code}: ${uploadServerData.error.error_msg}`);
-  }
-  const uploadUrl = uploadServerData.response!.upload_url;
-
-  // Step 2: download the image bytes
-  let imageBuffer: Buffer;
-  if (imageUrl.startsWith("data:")) {
-    const base64 = imageUrl.split(",")[1] ?? "";
-    imageBuffer = Buffer.from(base64, "base64");
-  } else {
-    const imgRes = await fetch(imageUrl);
-    imageBuffer = Buffer.from(await imgRes.arrayBuffer());
-  }
-
-  // Step 3: upload image to VK's upload server as multipart (native Node 24 FormData/Blob)
-  const form = new FormData();
-  form.set("photo", new Blob([new Uint8Array(imageBuffer)], { type: "image/png" }), "illustration.png");
-  const uploadRes = await fetch(uploadUrl, { method: "POST", body: form });
-  const uploadData = await uploadRes.json() as { server: number; photo: string; hash: string };
-
-  // Step 4: save the photo (also requires user token)
-  const saveParams = new URLSearchParams({
-    group_id: numericGroupId,
-    server: String(uploadData.server),
-    photo: uploadData.photo,
-    hash: uploadData.hash,
-    access_token: userToken,
-    v: VK_API_VERSION,
-  });
-  const saveRes = await fetch(`https://api.vk.com/method/photos.saveWallPhoto?${saveParams.toString()}`, { method: "POST" });
-  const saveData = await saveRes.json() as {
-    response?: Array<{ id: number; owner_id: number }>;
-    error?: { error_code: number; error_msg: string };
-  };
-  if (saveData.error) {
-    throw new Error(`VK saveWallPhoto error ${saveData.error.error_code}: ${saveData.error.error_msg}`);
-  }
-  const photo = saveData.response![0];
-  return `photo${photo.owner_id}_${photo.id}`;
+  const devDomain = process.env["REPLIT_DEV_DOMAIN"];
+  if (devDomain) return `https://${devDomain}`;
+  return null;
 }
 
 function getVkCredentials(channel: string): { token: string; groupId: string } {
@@ -90,30 +41,33 @@ function getVkCredentials(channel: string): { token: string; groupId: string } {
   return { token, groupId };
 }
 
-export async function publishPostToVk(postId: number, content: string, channel = "ya-inzhener", imageUrl?: string | null): Promise<number> {
+export async function publishPostToVk(
+  postId: number,
+  content: string,
+  channel = "ya-inzhener",
+  imageUrl?: string | null,
+): Promise<number> {
   const { token, groupId } = getVkCredentials(channel);
-
-  // Strip any non-numeric prefix (e.g. "club238494545" → "238494545")
   const numericGroupId = groupId.replace(/\D/g, "");
 
-  // Upload photo attachment if provided
-  let attachment: string | undefined;
+  // If there's an illustration, append a public link to the post text instead of uploading as a photo attachment.
+  let message = content;
   if (imageUrl) {
-    try {
-      attachment = await uploadPhotoForWall(imageUrl, token, numericGroupId);
-      logger.info({ postId, channel, attachment }, "Photo uploaded to VK for wall post");
-    } catch (err) {
-      logger.warn({ err, postId, channel }, "Failed to upload photo to VK — publishing text only");
+    const baseUrl = getPublicBaseUrl();
+    if (baseUrl) {
+      message = `${content}\n\n${baseUrl}/api/posts/${postId}/illustration`;
+      logger.info({ postId, channel }, "Appending illustration URL to VK post text");
+    } else {
+      logger.warn({ postId, channel }, "No public base URL found — illustration link omitted from VK post");
     }
   }
 
   const params = new URLSearchParams({
     owner_id: `-${numericGroupId}`,
-    message: content,
+    message,
     access_token: token,
     v: VK_API_VERSION,
   });
-  if (attachment) params.set("attachments", attachment);
 
   const response = await fetch(`${VK_API_URL}?${params.toString()}`, {
     method: "POST",
@@ -139,9 +93,7 @@ async function processDuePosts(): Promise<void> {
   const duePosts = await db
     .select()
     .from(postsTable)
-    .where(
-      lte(postsTable.scheduledAt, now)
-    );
+    .where(lte(postsTable.scheduledAt, now));
 
   const scheduledDue = duePosts.filter((p) => p.status === "scheduled");
 
@@ -154,25 +106,30 @@ async function processDuePosts(): Promise<void> {
     let vkPostId: number | undefined;
     let telegramMessageId: number | undefined;
 
-    // Publish to VK
+    // Publish to VK (illustration URL appended to text if present)
     try {
-      vkPostId = await publishPostToVk(post.id, post.content, channel);
+      vkPostId = await publishPostToVk(post.id, post.content, channel, post.illustrationUrl);
     } catch (err) {
       logger.error({ err, postId: post.id, channel }, "Failed to publish post to VK");
     }
 
-    // Publish to Telegram (independently — VK failure doesn't block it)
+    // Publish to Telegram independently — VK failure doesn't block it
     try {
-      const msgId = await publishPostToTelegram(post.id, post.content, channel);
+      const msgId = await publishPostToTelegram(post.id, post.content, channel, post.illustrationUrl);
       telegramMessageId = msgId ?? undefined;
     } catch (err) {
       logger.error({ err, postId: post.id, channel }, "Failed to publish post to Telegram");
     }
 
-    // Mark as published regardless of which channels succeeded
     await db
       .update(postsTable)
-      .set({ status: "published", publishedAt: new Date(), vkPostId: vkPostId ?? null, telegramMessageId: telegramMessageId ?? null, updatedAt: new Date() })
+      .set({
+        status: "published",
+        publishedAt: new Date(),
+        vkPostId: vkPostId ?? null,
+        telegramMessageId: telegramMessageId ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(postsTable.id, post.id));
 
     logger.info({ postId: post.id, title: post.title, channel }, "Post processed and marked as published");
@@ -190,7 +147,6 @@ export function startVkPublisher(): void {
 
   logger.info({ groupId, pollIntervalMs: POLL_INTERVAL_MS }, "VK auto-publisher started");
 
-  // Run immediately on startup to catch any posts that are already due
   processDuePosts().catch((err) => logger.error({ err }, "Initial VK publish check failed"));
 
   setInterval(() => {
