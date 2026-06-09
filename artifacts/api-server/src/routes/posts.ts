@@ -137,7 +137,7 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
   // Publish to Telegram independently — don't abort if it fails
   let telegramMessageId: number | undefined;
   try {
-    const msgId = await publishPostToTelegram(post.id, post.content, channel);
+    const msgId = await publishPostToTelegram(post.id, post.content, channel, post.illustrationUrl);
     telegramMessageId = msgId ?? undefined;
   } catch (err) {
     req.log.error({ err, postId: post.id, channel }, "Immediate Telegram publish failed");
