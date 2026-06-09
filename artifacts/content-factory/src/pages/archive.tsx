@@ -23,7 +23,7 @@ const VK_GROUP_BY_CHANNEL: Record<string, string> = {
 };
 const TG_BY_CHANNEL: Record<string, string | null> = {
   "ya-inzhener": "i_am_an_engineer1",
-  "bezopasnost": null,
+  "bezopasnost": "safety_rules_always",
 };
 
 interface Props {
