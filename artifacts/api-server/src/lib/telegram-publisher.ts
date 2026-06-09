@@ -3,17 +3,19 @@ import { logger } from "./logger";
 const TG_API = "https://api.telegram.org";
 
 export async function publishPostToTelegram(postId: number, content: string, channel = "ya-inzhener"): Promise<number | null> {
-  // Placeholder: Telegram not configured for this channel yet
-  if (channel === "bezopasnost") {
-    logger.info({ postId, channel }, "Telegram publish skipped — channel not configured yet (placeholder)");
-    return null;
-  }
-
-  const token = process.env["TELEGRAM_BOT_TOKEN"];
-  const channelId = process.env["TELEGRAM_CHANNEL_ID"];
+  const token = channel === "bezopasnost"
+    ? process.env["TELEGRAM_BOT2_TOKEN"]
+    : process.env["TELEGRAM_BOT_TOKEN"];
+  const channelId = channel === "bezopasnost"
+    ? process.env["TELEGRAM_CHANNEL_BEZ_ID"]
+    : process.env["TELEGRAM_CHANNEL_ID"];
 
   if (!token || !channelId) {
-    throw new Error("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not configured");
+    throw new Error(
+      channel === "bezopasnost"
+        ? "TELEGRAM_BOT2_TOKEN or TELEGRAM_CHANNEL_BEZ_ID not configured"
+        : "TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID not configured",
+    );
   }
 
   const response = await fetch(`${TG_API}/bot${token}/sendMessage`, {
