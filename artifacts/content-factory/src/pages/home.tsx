@@ -36,6 +36,7 @@ export default function Home({ channel }: Props) {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const todayIndex = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(todayIndex);
   const [recommendedDay, setRecommendedDay] = useState<number | null>(null);
@@ -267,7 +268,8 @@ export default function Home({ channel }: Props) {
   };
 
   const handleScheduleNow = async () => {
-    if (!aiResponse) return;
+    if (!aiResponse || isPublishing) return;
+    setIsPublishing(true);
     try {
       // DEBUG: немедленная публикация (без планировщика)
       const post = await createPost.mutateAsync({
@@ -301,6 +303,8 @@ export default function Home({ channel }: Props) {
       // setLocation(calendarPath);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -444,11 +448,24 @@ export default function Home({ channel }: Props) {
                 <Button
                   onClick={handleScheduleNow}
                   size="sm"
-                  className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={isPublishing}
+                  className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-100 disabled:bg-amber-500 disabled:text-white transition-colors"
                   data-testid="button-schedule-now"
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  В публикацию
+                  {isPublishing ? (
+                    <>
+                      <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                      </svg>
+                      Публикую…
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4 mr-2" />
+                      В публикацию
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={handleAccept}
