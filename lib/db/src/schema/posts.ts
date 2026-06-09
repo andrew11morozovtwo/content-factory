@@ -15,6 +15,7 @@ export const postsTable = pgTable("posts", {
   publishedAt: timestamp("published_at"),
   vkPostId: integer("vk_post_id"),
   telegramMessageId: integer("telegram_message_id"),
+  illustrationUrl: text("illustration_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -278,13 +278,11 @@ export default function Home({ channel }: Props) {
           conversationId,
           recommendedDay: selectedDay,
           channel,
+          // @ts-expect-error illustrationUrl not in generated OpenAPI type — stored in DB at creation
+          illustrationUrl: isBez ? imageUrl : null,
         },
       });
-      await fetch(`/api/posts/${post.id}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: isBez ? imageUrl : null }),
-      });
+      await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
       setLocation(postsPath);
 
       // ORIGINAL: планирование на ближайший свободный слот

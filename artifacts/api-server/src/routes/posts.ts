@@ -29,9 +29,12 @@ router.post("/posts", async (req, res): Promise<void> => {
     return;
   }
 
+  const { illustrationUrl } = req.body as { illustrationUrl?: string | null };
+
   const data = {
     ...parsed.data,
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
+    illustrationUrl: illustrationUrl ?? null,
   };
 
   const [post] = await db.insert(postsTable).values(data).returning();
@@ -122,11 +125,9 @@ router.post("/posts/:id/publish", async (req, res): Promise<void> => {
 
   const channel = post.channel ?? "ya-inzhener";
 
-  const { imageUrl } = (req.body ?? {}) as { imageUrl?: string | null };
-
   let vkPostId: number;
   try {
-    vkPostId = await publishPostToVk(post.id, post.content, channel, imageUrl);
+    vkPostId = await publishPostToVk(post.id, post.content, channel, post.illustrationUrl);
   } catch (err) {
     req.log.error({ err, postId: post.id, channel }, "Immediate VK publish failed");
     res.status(502).json({ error: "VK publish failed" });
