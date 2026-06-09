@@ -90,7 +90,7 @@ export default function ArchivePage({ channel }: Props) {
             const tgUrl = post.telegramMessageId && tgChannel
               ? `https://t.me/${tgChannel}/${post.telegramMessageId}`
               : null;
-            const dayInfo = post.recommendedDay != null ? DAY_LABELS[post.recommendedDay] : null;
+            const dayInfo = channel === "ya-inzhener" && post.recommendedDay != null ? DAY_LABELS[post.recommendedDay] : null;
 
             return (
               <Card key={post.id} className="overflow-hidden">

@@ -349,7 +349,7 @@ export default function Posts({ channel }: Props) {
                           → {format(new Date(post.scheduledAt), "d MMMM yyyy", { locale: ru })}
                         </span>
                       )}
-                      {post.recommendedDay != null && DAY_LABELS[post.recommendedDay] && (
+                      {channel === "ya-inzhener" && post.recommendedDay != null && DAY_LABELS[post.recommendedDay] && (
                         <span
                           className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                           title={`AI рекомендует: ${DAY_LABELS[post.recommendedDay].theme}`}
