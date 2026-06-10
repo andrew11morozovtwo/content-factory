@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { db, usedSourcesTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { callWithWebSearch } from "./ai-search.js";
 
 const SOURCE_CHANNEL = "https://t.me/s/ieofficial";
 
@@ -156,22 +157,22 @@ export function findNextFreeDate(dayIndex: number, scheduledDates: string[]): Da
   return candidate;
 }
 
-/**
- * Calls OpenAI to pick the best fresh post and generate a new post
- * in the style of «Я-Инженер» channel. Returns which source hash was used.
- */
-export async function generatePostFromSources(
-  posts: ParsedPost[],
-  scheduledDates: string[],
-): Promise<AutoGenerateResult> {
-  const apiKey = process.env["PROXYAPI_KEY"];
-  if (!apiKey) throw new Error("PROXYAPI_KEY not configured");
+// ─── Step 1 system prompt: select best post + extract search topic ────────────
+const SELECTOR_PROMPT = `Ты — редактор канала «Я-Инженер». Твоя задача — выбрать из списка постов самую интересную инженерную тему для аудитории инженеров и разработчиков 25–45 лет.
 
-  const postsText = posts
-    .map((p, i) => `[${i + 1}] (ID:${p.hash}) ${p.text.slice(0, 600)}`)
-    .join("\n\n---\n\n");
+Ответь строго в формате JSON (без markdown-блоков):
+{
+  "chosenId": "<ID поста-источника, скопируй точно из (ID:...) в начале записи>",
+  "topicSummary": "<тема одним предложением по-русски, 10–20 слов — для поиска авторитетных источников в интернете>"
+}`;
 
-  const systemPrompt = `Ты — автоматический генератор постов для VK-канала «Я-Инженер» (https://vk.com/club238494545).
+// ─── Step 2 system prompt: web search for authoritative sources ───────────────
+const SOURCE_FINDER_PROMPT = `Ты ищешь авторитетные источники для инженерной новости.
+Найди 2–3 наиболее авторитетных сайта по данной теме: официальный сайт компании, крупное СМИ (tass.ru, techcrunch.com, reuters.com, roscosmos.ru и т.п.).
+Ответь кратко: перечисли найденные сайты с их доменами. Не придумывай ссылки — только то, что реально нашёл.`;
+
+// ─── Step 3 system prompt: generate post with real source URL ─────────────────
+const GENERATOR_PROMPT = `Ты — автоматический генератор постов для VK-канала «Я-Инженер» (https://vk.com/club238494545).
 Аудитория: инженеры, разработчики, техспециалисты 25–45 лет.
 
 Расписание по дням:
@@ -188,68 +189,118 @@ export async function generatePostFromSources(
 - Эмодзи по смыслу (1–4 на пост)
 - Структура: заголовок → вступление → технический разбор → вопрос подписчикам → источник → хэштеги
 - Длина строго 900–1000 знаков с пробелами
-- Источник: только домен t.me/ieofficial
+- Источник: используй первый URL из блока «Авторитетные источники» в сообщении пользователя. Если список пуст — используй домен t.me/ieofficial
 - Обязателен хэштег #ЯИнженер
 - ЗАПРЕЩЕНО добавлять выдуманные цифры
 
 Ответь строго в формате JSON (без markdown-блоков):
 {
-  "chosenId": "<ID поста-источника, скопируй точно из (ID:...) в начале записи>",
   "recommendedDay": <число 0-6>,
   "title": "<заголовок поста, 1 строка>",
   "content": "<полный текст поста 900-1000 знаков>"
 }`;
 
-  const userPrompt = `Вот свежие посты из канала-источника @ieofficial (каждый с уникальным ID). Выбери самую интересную инженерную тему и напиши пост для нашего канала «Я-Инженер». Верни chosenId — ID выбранного поста-источника.\n\n${postsText}`;
+/**
+ * Calls OpenAI to pick the best fresh post and generate a new post
+ * in the style of «Я-Инженер» channel. Returns which source hash was used.
+ *
+ * 3-step pipeline:
+ *   Step 1 — select best post + extract topic summary (gpt-4o, fast)
+ *   Step 2 — web search for authoritative sources (gpt-4o-search-preview)
+ *   Step 3 — generate full post with real source URL (gpt-4o)
+ */
+export async function generatePostFromSources(
+  posts: ParsedPost[],
+  scheduledDates: string[],
+): Promise<AutoGenerateResult> {
+  const apiKey = process.env["PROXYAPI_KEY"];
+  if (!apiKey) throw new Error("PROXYAPI_KEY not configured");
 
-  const response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
+  const postsText = posts
+    .map((p, i) => `[${i + 1}] (ID:${p.hash}) ${p.text.slice(0, 600)}`)
+    .join("\n\n---\n\n");
+
+  // ── Step 1: select the best post and extract topic ──────────────────────────
+  const step1Response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        { role: "system", content: SELECTOR_PROMPT },
+        {
+          role: "user",
+          content: `Вот свежие посты из канала-источника @ieofficial (каждый с уникальным ID). Выбери самую интересную тему.\n\n${postsText}`,
+        },
+      ],
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!step1Response.ok) throw new Error(`Step 1 error ${step1Response.status}`);
+
+  const step1Data = (await step1Response.json()) as { choices: Array<{ message: { content: string } }> };
+  const step1 = JSON.parse(step1Data.choices[0]?.message?.content ?? "{}") as {
+    chosenId?: string;
+    topicSummary?: string;
+  };
+
+  const usedHash = step1.chosenId ?? posts[0]?.hash ?? "";
+  const chosenPost = posts.find((p) => p.hash === usedHash) ?? posts[0];
+  const topicSummary = step1.topicSummary ?? chosenPost?.text.slice(0, 150) ?? "";
+
+  logger.info({ usedHash, topicSummary }, "YI Autopilot: Step 1 — post selected");
+
+  // ── Step 2: web search for authoritative sources ────────────────────────────
+  const { urls: foundUrls } = await callWithWebSearch(
+    SOURCE_FINDER_PROMPT,
+    `Найди авторитетные источники по теме: ${topicSummary}`,
+  );
+
+  logger.info({ foundUrls }, "YI Autopilot: Step 2 — sources found");
+
+  const sourceBlock =
+    foundUrls.length > 0
+      ? `Авторитетные источники:\n${foundUrls.slice(0, 3).join("\n")}`
+      : "Авторитетные источники: не найдено";
+
+  // ── Step 3: generate post with real source URL ──────────────────────────────
+  const step3UserMessage =
+    `${sourceBlock}\n\nТекст поста-источника из @ieofficial:\n${chosenPost?.text.slice(0, 800) ?? ""}`;
+
+  const step3Response = await fetch("https://api.proxyapi.ru/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: GENERATOR_PROMPT },
+        { role: "user", content: step3UserMessage },
       ],
       temperature: 0.7,
       response_format: { type: "json_object" },
     }),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`OpenAI error ${response.status}: ${err}`);
-  }
+  if (!step3Response.ok) throw new Error(`Step 3 error ${step3Response.status}`);
 
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-  };
-
-  const raw = data.choices[0]?.message?.content ?? "{}";
-  const parsed = JSON.parse(raw) as {
-    chosenId?: string;
+  const step3Data = (await step3Response.json()) as { choices: Array<{ message: { content: string } }> };
+  const parsed = JSON.parse(step3Data.choices[0]?.message?.content ?? "{}") as {
     recommendedDay: number;
     title: string;
     content: string;
   };
 
   const dayIndex =
-    typeof parsed.recommendedDay === "number" &&
-    parsed.recommendedDay >= 0 &&
-    parsed.recommendedDay <= 6
+    typeof parsed.recommendedDay === "number" && parsed.recommendedDay >= 0 && parsed.recommendedDay <= 6
       ? parsed.recommendedDay
       : 3;
-
-  // Use chosenId returned by AI, fallback to first post's hash
-  const usedHash = parsed.chosenId ?? posts[0]?.hash ?? "";
 
   const scheduledAt = findNextFreeDate(dayIndex, scheduledDates);
 
   logger.info(
-    { recommendedDay: dayIndex, theme: DAY_THEMES[dayIndex], scheduledAt, usedHash },
+    { recommendedDay: dayIndex, theme: DAY_THEMES[dayIndex], scheduledAt, usedHash, sourceUrl: foundUrls[0] ?? "t.me/ieofficial" },
     "Auto-generated post",
   );
 
