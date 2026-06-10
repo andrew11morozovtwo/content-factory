@@ -19,6 +19,11 @@ const YI_MINUTE_MSK = 0;
 const BEZ_HOUR_MSK = 10;
 const BEZ_MINUTE_MSK = 0;
 
+// DEBUG: каждые 15 минут до 12:00 МСК 10 июня 2026. Убрать после теста.
+const BEZ_DEBUG_END_UTC = new Date("2026-06-10T09:00:00.000Z"); // 12:00 MSK
+const BEZ_DEBUG_INTERVAL_MS = 15 * 60 * 1000; // 15 минут
+const BEZ_DEBUG_COOLDOWN_MS = 13 * 60 * 1000; // не чаще раза в 13 минут
+
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
 async function getSetting(key: string): Promise<string | null> {
@@ -236,11 +241,24 @@ export async function runBezAutopilotCheck(): Promise<void> {
 
   logger.info("BEZ Autopilot check started");
 
-  const already = await hasTodayPostForChannel("bezopasnost");
-  if (already) {
-    logger.info("BEZ Autopilot: post for today already exists, skipping");
-    await setSetting("bez_autopilot_last_run", new Date().toISOString());
-    return;
+  const isDebugMode = new Date() < BEZ_DEBUG_END_UTC;
+
+  if (isDebugMode) {
+    // DEBUG: вместо "пост сегодня уже есть" — cooldown 13 минут
+    const lastRunStr = await getSetting("bez_autopilot_last_run");
+    const lastRun = lastRunStr ? new Date(lastRunStr) : null;
+    if (lastRun && Date.now() - lastRun.getTime() < BEZ_DEBUG_COOLDOWN_MS) {
+      logger.info({ lastRunAt: lastRun.toISOString() }, "BEZ Autopilot (debug): cooldown active, skipping");
+      return;
+    }
+    logger.info("BEZ Autopilot (debug): running in 15-min test mode");
+  } else {
+    const already = await hasTodayPostForChannel("bezopasnost");
+    if (already) {
+      logger.info("BEZ Autopilot: post for today already exists, skipping");
+      await setSetting("bez_autopilot_last_run", new Date().toISOString());
+      return;
+    }
   }
 
   logger.info("BEZ Autopilot: no post for today — generating");
@@ -282,6 +300,18 @@ export async function runBezAutopilotCheck(): Promise<void> {
 
 function msUntilBezRun(): number {
   const now = new Date();
+
+  // DEBUG: каждые 15 минут до 12:00 МСК 10 июня 2026
+  if (now < BEZ_DEBUG_END_UTC) {
+    const nextTick = new Date(
+      Math.ceil((now.getTime() + 1000) / BEZ_DEBUG_INTERVAL_MS) * BEZ_DEBUG_INTERVAL_MS,
+    );
+    if (nextTick < BEZ_DEBUG_END_UTC) {
+      return nextTick.getTime() - now.getTime();
+    }
+  }
+
+  // Штатно: 10:00 МСК ежедневно
   const target = new Date(now);
   target.setUTCHours(BEZ_HOUR_MSK - MSK_OFFSET_HOURS, BEZ_MINUTE_MSK, 0, 0);
   if (target.getTime() <= now.getTime()) {
