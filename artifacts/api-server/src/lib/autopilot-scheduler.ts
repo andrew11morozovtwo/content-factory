@@ -7,6 +7,7 @@ import {
   generateBezPost,
   markHashesUsed,
 } from "./auto-generator.js";
+import { buildIllustrationPrompt, generateIllustration } from "./image-generator.js";
 
 // ─── Time constants ────────────────────────────────────────────────────────────
 const MSK_OFFSET_HOURS = 3;
@@ -275,6 +276,9 @@ export async function runBezAutopilotCheck(): Promise<void> {
 
     const generated = await generateBezPost(scheduledDates);
 
+    // Publish after 5 min — gives illustration generation time to finish
+    const publishAt = new Date(Date.now() + 5 * 60 * 1000);
+
     const [post] = await db
       .insert(postsTable)
       .values({
@@ -283,14 +287,29 @@ export async function runBezAutopilotCheck(): Promise<void> {
         status: "scheduled",
         recommendedDay: generated.recommendedDay,
         channel: "bezopasnost",
-        scheduledAt: new Date(), // publish immediately (scheduler runs at 10:00 MSK)
+        scheduledAt: publishAt,
       })
       .returning();
 
     logger.info(
-      { postId: post.id },
-      "BEZ Autopilot: post queued for immediate publish",
+      { postId: post.id, publishAt: publishAt.toISOString() },
+      "BEZ Autopilot: post queued, publishing in 5 min",
     );
+
+    // Generate illustration asynchronously — must finish before publishAt
+    (async () => {
+      try {
+        const imgPrompt = await buildIllustrationPrompt(generated.content);
+        const illustrationUrl = await generateIllustration(imgPrompt);
+        await db
+          .update(postsTable)
+          .set({ illustrationUrl, updatedAt: new Date() })
+          .where(eq(postsTable.id, post.id));
+        logger.info({ postId: post.id }, "BEZ Autopilot: illustration saved");
+      } catch (imgErr) {
+        logger.warn({ imgErr, postId: post.id }, "BEZ Autopilot: illustration failed — post will publish without image");
+      }
+    })();
   } catch (err) {
     logger.error({ err }, "BEZ Autopilot: generation/publish failed");
   }
