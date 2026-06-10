@@ -1,4 +1,5 @@
 import { logger } from "./logger.js";
+import { BEZ_AGENT_ILLUSTRATOR } from "../routes/openai/prompts.js";
 
 /**
  * Generates an illustration for a post using gpt-image-2.
@@ -42,8 +43,9 @@ export async function generateIllustration(prompt: string): Promise<string> {
 }
 
 /**
- * Generates a short image-generation prompt from post content using GPT-4o.
- * Used when no explicit illustration prompt is available (e.g. Автомат mode).
+ * Generates a structured image-generation prompt from post content using GPT-4o.
+ * Uses the same BEZ_AGENT_ILLUSTRATOR rules as the manual SSE pipeline:
+ * cartoon style, one rule focused, DRAW ME A PICTURE format, no text on image.
  */
 export async function buildIllustrationPrompt(content: string): Promise<string> {
   const apiKey = process.env["PROXYAPI_KEY"];
@@ -60,17 +62,14 @@ export async function buildIllustrationPrompt(content: string): Promise<string> 
       messages: [
         {
           role: "system",
-          content:
-            "Ты генерируешь короткое описание иллюстрации для поста о безопасности. " +
-            "Описание должно быть на английском языке, до 200 символов, конкретным и визуально ярким. " +
-            "Отвечай только текстом промпта, без пояснений и кавычек.",
+          content: BEZ_AGENT_ILLUSTRATOR,
         },
         {
           role: "user",
-          content: `Вот текст поста:\n\n${content}\n\nОпиши иллюстрацию к нему.`,
+          content: `Пост:\n${content}`,
         },
       ],
-      max_tokens: 100,
+      max_tokens: 300,
       temperature: 0.7,
     }),
   });
