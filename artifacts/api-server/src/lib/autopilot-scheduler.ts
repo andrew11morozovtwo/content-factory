@@ -20,6 +20,10 @@ const YI_MINUTE_MSK = 0;
 const BEZ_HOUR_MSK = 10;
 const BEZ_MINUTE_MSK = 0;
 
+// Тайминг публикации: T+0 текст+промпт, T+5 генерация картинки, T+10 публикация
+const BEZ_ILLUSTRATION_START_DELAY_MS = 5 * 60 * 1000;  // 5 мин — старт генерации картинки
+const BEZ_PUBLISH_DELAY_MS = 10 * 60 * 1000;            // 10 мин — публикация
+
 // DEBUG: каждые 15 минут до 12:00 МСК 10 июня 2026. Убрать после теста.
 const BEZ_DEBUG_END_UTC = new Date("2026-06-10T09:00:00.000Z"); // 12:00 MSK
 const BEZ_DEBUG_INTERVAL_MS = 15 * 60 * 1000; // 15 минут
@@ -276,8 +280,12 @@ export async function runBezAutopilotCheck(): Promise<void> {
 
     const generated = await generateBezPost(scheduledDates);
 
-    // Publish after 5 min — gives illustration generation time to finish
-    const publishAt = new Date(Date.now() + 5 * 60 * 1000);
+    // T+0: build illustration prompt immediately alongside text generation
+    const imgPrompt = await buildIllustrationPrompt(generated.content);
+    logger.info({ postId: 0 }, "BEZ Autopilot: illustration prompt ready, image generation starts in 5 min");
+
+    // T+10: publish (VK publisher picks up when scheduledAt <= now)
+    const publishAt = new Date(Date.now() + BEZ_PUBLISH_DELAY_MS);
 
     const [post] = await db
       .insert(postsTable)
@@ -293,23 +301,25 @@ export async function runBezAutopilotCheck(): Promise<void> {
 
     logger.info(
       { postId: post.id, publishAt: publishAt.toISOString() },
-      "BEZ Autopilot: post queued, publishing in 5 min",
+      "BEZ Autopilot: post queued — T+0 text done, T+5 image starts, T+10 publish",
     );
 
-    // Generate illustration asynchronously — must finish before publishAt
-    (async () => {
-      try {
-        const imgPrompt = await buildIllustrationPrompt(generated.content);
-        const illustrationUrl = await generateIllustration(imgPrompt);
-        await db
-          .update(postsTable)
-          .set({ illustrationUrl, updatedAt: new Date() })
-          .where(eq(postsTable.id, post.id));
-        logger.info({ postId: post.id }, "BEZ Autopilot: illustration saved");
-      } catch (imgErr) {
-        logger.warn({ imgErr, postId: post.id }, "BEZ Autopilot: illustration failed — post will publish without image");
-      }
-    })();
+    // T+5: start image generation — finishes ~30s later, well before T+10
+    setTimeout(() => {
+      (async () => {
+        try {
+          logger.info({ postId: post.id }, "BEZ Autopilot: starting illustration generation (T+5)");
+          const illustrationUrl = await generateIllustration(imgPrompt);
+          await db
+            .update(postsTable)
+            .set({ illustrationUrl, updatedAt: new Date() })
+            .where(eq(postsTable.id, post.id));
+          logger.info({ postId: post.id }, "BEZ Autopilot: illustration saved (T+~5.5)");
+        } catch (imgErr) {
+          logger.warn({ imgErr, postId: post.id }, "BEZ Autopilot: illustration failed — post will publish without image");
+        }
+      })();
+    }, BEZ_ILLUSTRATION_START_DELAY_MS);
   } catch (err) {
     logger.error({ err }, "BEZ Autopilot: generation/publish failed");
   }
