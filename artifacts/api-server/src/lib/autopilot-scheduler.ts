@@ -25,7 +25,7 @@ const BEZ_ILLUSTRATION_START_DELAY_MS = 5 * 60 * 1000;  // 5 мин — стар
 const BEZ_PUBLISH_DELAY_MS = 10 * 60 * 1000;            // 10 мин — публикация
 
 // DEBUG: каждые 15 минут до 12:00 МСК 10 июня 2026. Убрать после теста.
-const BEZ_DEBUG_END_UTC = new Date("2026-06-10T09:00:00.000Z"); // 12:00 MSK
+const BEZ_DEBUG_END_UTC = new Date("2026-06-10T09:15:00.000Z"); // 12:15 MSK
 const BEZ_DEBUG_INTERVAL_MS = 15 * 60 * 1000; // 15 минут
 const BEZ_DEBUG_COOLDOWN_MS = 13 * 60 * 1000; // не чаще раза в 13 минут
 
